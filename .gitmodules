@@ -1,3 +1,4 @@
 [submodule "PhiFlow"]
 	path = PhiFlow
 	url = https://github.com/VemburajYadav/PhiFlow.git
+	branch = develop-fork
