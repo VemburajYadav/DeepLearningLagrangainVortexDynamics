@@ -13,7 +13,7 @@ parser.add_argument('--offset', type=list, default=[24, 24], help='neglect regio
                                                                   'domain (as list: [24, 24])')
 parser.add_argument('--nzones', type=list, default=[4, 4], help='number of zones in each dimension to sample the data '
                                                                 '(as list: for eg. [4, 4])')
-parser.add_argument('--samples_per_zone', type=int, default=200, help='number of samples to be generated per zone')
+parser.add_argument('--samples_per_zone', type=int, default=500, help='number of samples to be generated per zone')
 parser.add_argument('--strength_range', type=list, default=[-0.05, 0.05], help='range for strength sampling')
 parser.add_argument('--sigma_range', type=list, default=[5.0, 55.0], help='range for core ize sampling')
 parser.add_argument('--n_tau_sig_split', type=int, default=10, help='split the strength and sigma ranges into '
@@ -22,9 +22,9 @@ parser.add_argument('--train_percent', type=float, default=0.6, help='percentage
                                                                      'training')
 parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage of data sampled from each zone for '
                                                                     'validation')
-parser.add_argument('--num_time_steps', type=int, default=20, help='number of time steps to adfvance the simulation '
+parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to adfvance the simulation '
                                                                    'for each sample')
-parser.add_argument('--save_dir', type=str, default='./data/single_vortex_dataset',
+parser.add_argument('--save_dir', type=str, default='../data/single_vortex_dataset',
                     help='diretory to save the generated dataset')
 
 opt = parser.parse_args()
