@@ -1,7 +1,7 @@
 import torch
 import os
 import numpy as np
-from phi.flow import StaggeredGrid, Domain
+from phi.flow import StaggeredGrid, Domain, AngularVelocity
 
 
 class SingleVortexDataset(torch.utils.data.Dataset):
