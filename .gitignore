@@ -5,7 +5,7 @@ build/
 *.npz
 *.sp
 *.so
-
+.idea/
 bin/
 develop-eggs/
 dist/
