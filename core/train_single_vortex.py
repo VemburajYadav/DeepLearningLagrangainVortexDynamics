@@ -16,12 +16,12 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--epochs', type=int, default=60, help='number of epochs to train for')
-parser.add_argument('--data_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_small', help='path to save training '
-                                                                  'summaries and checkpoints')
+parser.add_argument('--data_dir', type=str, default='/home/vemburaj/data/single_vortex_dataset',
+                    help='path to save training summaries and checkpoints')
 parser.add_argument('--batch_size', type=int, default=16, help='Batch Size for training')
-parser.add_argument('--lr', type=float, default=0.0001, help='Base learning rate')
-parser.add_argument('--l2', type=float, default=1e-4, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='train_demo', help='name of the experiment')
+parser.add_argument('--lr', type=float, default=0.00001, help='Base learning rate')
+parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
+parser.add_argument('--ex', type=str, default='train_demo_mod', help='name of the experiment')
 parser.add_argument('--depth', type=int, default=3, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=1024, help='number of neurons in hidden layers')
 
@@ -68,7 +68,7 @@ model_.apply(init_weights)
 model_.to('cuda:0')
 model_.requires_grad_(requires_grad=True).train()
 
-optimizer = Adam(params=model_.parameters(), lr=0.0001, weight_decay=opt.l2)
+optimizer = Adam(params=model_.parameters(), lr=opt.lr, weight_decay=opt.l2)
 train_summary = SummaryWriter(log_dir=train_summaries_dir)
 val_summary = SummaryWriter(log_dir=val_summaries_dir)
 
@@ -91,6 +91,10 @@ def execute_batch(data_dict, model, points, return_loss=None):
 
     tau, sig, pu0, pv0 = torch.unbind(inp_gpu, dim=-1)
     dy, dx, dtau, dsig = torch.unbind(out_gpu, dim=-1)
+
+    dy = dy * 0.1
+    dx = dx * 0.1
+    dsig = F.softplus(dsig)
 
     new_pos = torch.unsqueeze(torch.stack([dy, dx], dim=-1) + loc0_gpu, dim=1)
     new_tau = torch.unsqueeze(tau + dtau, dim=-1)
