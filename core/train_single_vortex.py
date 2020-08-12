@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import Adam
+from torch.optim.lr_scheduler import StepLR
 from core.custom_functions import particle_vorticity_to_velocity
 from torch.utils.tensorboard import SummaryWriter
 from core.datasets import SingleVortexDataset
@@ -15,13 +16,13 @@ import os
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--epochs', type=int, default=60, help='number of epochs to train for')
-parser.add_argument('--data_dir', type=str, default='/home/vemburaj/data/single_vortex_dataset',
+parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
+parser.add_argument('--data_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_1',
                     help='path to save training summaries and checkpoints')
 parser.add_argument('--batch_size', type=int, default=16, help='Batch Size for training')
-parser.add_argument('--lr', type=float, default=0.00001, help='Base learning rate')
+parser.add_argument('--lr', type=float, default=0.0001, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='train_demo', help='name of the experiment')
+parser.add_argument('--ex', type=str, default='train_demo_4', help='name of the experiment')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=1024, help='number of neurons in hidden layers')
 
@@ -69,6 +70,7 @@ model_.to('cuda:0')
 model_.requires_grad_(requires_grad=True).train()
 
 optimizer = Adam(params=model_.parameters(), lr=opt.lr, weight_decay=opt.l2)
+scheduler = StepLR(optimizer, 100, gamma=0.1)
 train_summary = SummaryWriter(log_dir=train_summaries_dir)
 val_summary = SummaryWriter(log_dir=val_summaries_dir)
 
@@ -108,7 +110,7 @@ def execute_batch(data_dict, model, points, return_loss=None):
     else:
         vel1 = data_dict['velocity1']
         vel1_gpu = vel1.to('cuda:0')
-        loss = F.mse_loss(pred_vel1, vel1_gpu, reduction='sum') / opt.batch_size
+        loss = F.l1_loss(pred_vel1, vel1_gpu, reduction='sum') / opt.batch_size
         return pred_vel1, loss
 
 
@@ -162,3 +164,5 @@ for epoch in range(opt.epochs):
         torch.save(save_state_dict, ckpt_path)
 
         val_best = val_loss.item()
+
+    scheduler.step()
