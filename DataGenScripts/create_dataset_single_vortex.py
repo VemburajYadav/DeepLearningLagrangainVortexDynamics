@@ -24,7 +24,7 @@ parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage 
                                                                     'validation')
 parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to adfvance the simulation '
                                                                    'for each sample')
-parser.add_argument('--save_dir', type=str, default='../data/single_vortex_dataset',
+parser.add_argument('--save_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_1',
                     help='diretory to save the generated dataset')
 
 opt = parser.parse_args()
@@ -101,16 +101,18 @@ def create_dataset_vortex(ycoords, xcoords, tau_range_list, sigma_range_list, sa
 
             velocity_0 = vorticity.at(FLOW.velocity)
 
-            # velocities = [velocity_0]
             fluid = world_obj.add(Fluid(domain=domain, velocity=velocity_0), physics=IncompressibleFlow())
 
-            SCENE.write([velocity_0, location, strength, stddev], ['velocity', 'location', 'strength', 'sigma'],
-                        frame=0)
+            np.savez(os.path.join(SCENE.path, 'velocity_000000.npz'), velocity_0.sample_at(domain.center_points()))
 
             for step in range(NUM_TIME_STEPS):
                 world_obj.step()
-                SCENE.write([fluid.velocity], ['velocity'], frame=step+1)
-                # velocities.append(fluid.velocity)
+                filename = 'velocity_' + '0' * (6 - len(str(step+1))) + str(step+1) + '.npz'
+                np.savez(os.path.join(SCENE.path, filename), fluid.velocity.sample_at(domain.center_points()))
+
+            np.savez(os.path.join(SCENE.path, 'location_000000.npz'), location)
+            np.savez(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
+            np.savez(os.path.join(SCENE.path, 'sigma_000000.npz'), stddev)
 
             print('Writing Simulation Case: {}'.format(SCENE.path))
             GLOBAL_STEP += 1

@@ -21,8 +21,8 @@ parser.add_argument('--data_dir', type=str, default='/home/vemburaj/data/single_
 parser.add_argument('--batch_size', type=int, default=16, help='Batch Size for training')
 parser.add_argument('--lr', type=float, default=0.00001, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='train_demo_mod', help='name of the experiment')
-parser.add_argument('--depth', type=int, default=3, help='number of hidden layers')
+parser.add_argument('--ex', type=str, default='train_demo', help='name of the experiment')
+parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=1024, help='number of neurons in hidden layers')
 
 opt = parser.parse_args()
