@@ -1,7 +1,7 @@
 import torch
 
 
-def particle_vorticity_to_velocity(loc, tau, sigma, points):
+def particle_vorticity_to_velocity(loc, tau, sigma, points, return_only=None):
     points_rank = points.ndim - 2
     src_rank = loc.ndim - 2
 
@@ -20,7 +20,18 @@ def particle_vorticity_to_velocity(loc, tau, sigma, points):
     dist_1, dist_2 = torch.unbind(distances, dim=-1)
 
     src_axes = tuple(range(-2, -2 - src_rank, -1))
-    velocity = strength * torch.stack([dist_2, -dist_1], dim=-1)
-    velocity = torch.sum(velocity, dim=src_axes)
 
-    return velocity
+    if return_only is None:
+        velocity = strength * torch.stack([dist_2, -dist_1], dim=-1)
+        velocity = torch.sum(velocity, dim=src_axes)
+        return velocity
+    elif return_only == 'y':
+        velocity = strength * torch.unsqueeze(dist_2, dim=-1)
+        velocity = torch.sum(velocity, dim=src_axes)
+        return velocity
+    elif return_only == 'x':
+        velocity = strength * torch.unsqueeze(-dist_1, dim=-1)
+        velocity = torch.sum(velocity, dim=src_axes)
+        return velocity
+    else:
+        raise ValueError('return_only argument must be either "y" or "x" or left as None (default)')

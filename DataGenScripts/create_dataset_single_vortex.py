@@ -1,9 +1,6 @@
 from functools import partial
 from phi.tf.flow import *
-import matplotlib.pyplot as plt
 import argparse
-import random
-import copy
 import os
 
 parser = argparse.ArgumentParser()
@@ -11,20 +8,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--offset', type=list, default=[24, 24], help='neglect regions near boundaries of the '
                                                                   'domain (as list: [24, 24])')
-parser.add_argument('--nzones', type=list, default=[4, 4], help='number of zones in each dimension to sample the data '
-                                                                '(as list: for eg. [4, 4])')
-parser.add_argument('--samples_per_zone', type=int, default=500, help='number of samples to be generated per zone')
+parser.add_argument('--n_samples', type=int, default=8000, help='number of samples to be generated')
 parser.add_argument('--strength_range', type=list, default=[-0.05, 0.05], help='range for strength sampling')
+parser.add_argument('--strength_threshold', type=float, default=0.01, help='minimum value of magnitude of strength')
 parser.add_argument('--sigma_range', type=list, default=[5.0, 55.0], help='range for core ize sampling')
-parser.add_argument('--n_tau_sig_split', type=int, default=10, help='split the strength and sigma ranges into '
-                                                                    'n_tau_sig_split splits')
 parser.add_argument('--train_percent', type=float, default=0.6, help='percentage of data sampled from each zone for '
                                                                      'training')
 parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage of data sampled from each zone for '
                                                                     'validation')
-parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to adfvance the simulation '
+parser.add_argument('--num_time_steps', type=int, default=500, help='number of time steps to adfvance the simulation '
                                                                    'for each sample')
-parser.add_argument('--save_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_1',
+parser.add_argument('--save_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset',
                     help='diretory to save the generated dataset')
 
 opt = parser.parse_args()
@@ -32,34 +26,19 @@ opt = parser.parse_args()
 RESOLUTION = opt.domain
 OFFSET = opt.offset
 SAMPLE_RES = [RESOLUTION[0] - 2 * OFFSET[0], RESOLUTION[1] - 2 * OFFSET[1]]
-SAMPLES_PER_ZONE = opt.samples_per_zone
+NSAMPLES = opt.n_samples
 STRENGTH_RANGE = opt.strength_range
 SIGMA_RANGE = opt.sigma_range
-
-NZONES = opt.nzones
-N_SIG_TAU = opt.n_tau_sig_split
-
+STRENGTH_THRESHOLD_MAG = opt.strength_threshold
 TRAIN_PERCENT = opt.train_percent
 VAL_PERCENT = opt.eval_percent
 
+N_TRAIN_SAMPLES = int(NSAMPLES * TRAIN_PERCENT)
+N_VAL_SAMPLES = int(NSAMPLES * VAL_PERCENT)
+N_TEST_SAMPLES = NSAMPLES - (N_TRAIN_SAMPLES + N_VAL_SAMPLES)
+
 NUM_TIME_STEPS = opt.num_time_steps
 DIRECTORY = opt.save_dir
-
-strength_div_size = (STRENGTH_RANGE[1] - STRENGTH_RANGE[0]) / N_SIG_TAU
-sigma_div_size = (SIGMA_RANGE[1] - SIGMA_RANGE[0]) / N_SIG_TAU
-domain_y_div_size = SAMPLE_RES[0] / NZONES[0]
-domain_x_div_size = SAMPLE_RES[1] / NZONES[1]
-
-y_split = np.append(np.arange(0, SAMPLE_RES[1], domain_y_div_size), SAMPLE_RES[1])
-x_split = np.append(np.arange(0, SAMPLE_RES[0], domain_x_div_size), SAMPLE_RES[0])
-tau_split = np.append(np.arange(STRENGTH_RANGE[0], STRENGTH_RANGE[1], strength_div_size), STRENGTH_RANGE[1])
-sigma_split = np.append(np.arange(SIGMA_RANGE[0], SIGMA_RANGE[1], sigma_div_size), SIGMA_RANGE[1])
-
-zone_y_range = [[y_split[i], y_split[i+1]] for i in range(len(y_split)-1)]
-zone_x_range = [[x_split[i], x_split[i+1]] for i in range(len(x_split)-1)]
-
-tau_range = [[tau_split[i], tau_split[i+1]] for i in range(len(tau_split)-1)]
-sigma_range = [[sigma_split[i], sigma_split[i+1]] for i in range(len(sigma_split)-1)]
 
 
 def gaussian_falloff(distance, sigma):
@@ -67,102 +46,103 @@ def gaussian_falloff(distance, sigma):
     return (math.exp(- sq_distance / sigma ** 2)) / math.sqrt(sq_distance)
 
 
-def create_dataset_vortex(ycoords, xcoords, tau_range_list, sigma_range_list, save_dir):
+ycoords = np.sort(np.random.random_sample(size=NSAMPLES) * SAMPLE_RES[0] + OFFSET[0])
+xcoords = np.sort(np.random.random_sample(size=NSAMPLES) * SAMPLE_RES[1] + OFFSET[1])
 
-    NSAMPLES = int(SAMPLES_PER_ZONE / N_SIG_TAU)
+strengths_pos = np.random.random_sample(size=NSAMPLES) * (STRENGTH_RANGE[1] - STRENGTH_THRESHOLD_MAG) + STRENGTH_THRESHOLD_MAG
+strengths_neg = np.random.random_sample(size=NSAMPLES) * (-STRENGTH_THRESHOLD_MAG - STRENGTH_RANGE[0]) + STRENGTH_RANGE[0]
 
-    domain = Domain(RESOLUTION, boundaries=OPEN)
-    FLOW = Fluid(domain)
+strengths = np.sort(np.concatenate([strengths_neg, strengths_pos]))
+sigmas = np.sort(np.random.random_sample(size=NSAMPLES) * (SIGMA_RANGE[1] - SIGMA_RANGE[0]) + SIGMA_RANGE[0])
 
-    GLOBAL_STEP = 0
+np.random.shuffle(ycoords)
+np.random.shuffle(xcoords)
+np.random.shuffle(strengths)
+np.random.shuffle(sigmas)
 
-    for i in range(len(tau_range_list)):
-        tau_min, tau_max = tau_range_list[i][0], tau_range_list[i][1]
-        sig_min, sig_max = sigma_range_list[i][0], sigma_range_list[i][1]
+train_ycoords, train_xcoords = ycoords[0: N_TRAIN_SAMPLES], xcoords[0: N_TRAIN_SAMPLES]
+train_strengths, train_sigmas = strengths[0:N_TRAIN_SAMPLES], sigmas[0: N_TRAIN_SAMPLES]
 
-        tau = np.random.random_sample(size=NSAMPLES) * (tau_max - tau_min) + tau_min
-        sigma = np.random.random_sample(size=NSAMPLES) * (sig_max - sig_min) + sig_min
+val_ycoords, val_xcoords = ycoords[N_TRAIN_SAMPLES: (N_TRAIN_SAMPLES + N_VAL_SAMPLES)],\
+                           xcoords[N_TRAIN_SAMPLES: (N_TRAIN_SAMPLES + N_VAL_SAMPLES)]
+val_strengths, val_sigmas = strengths[N_TRAIN_SAMPLES: (N_TRAIN_SAMPLES + N_VAL_SAMPLES)], \
+                            sigmas[N_TRAIN_SAMPLES: (N_TRAIN_SAMPLES + N_VAL_SAMPLES)]
 
-        yc = ycoords[i*NSAMPLES: (i+1)*NSAMPLES]
-        xc = xcoords[i*NSAMPLES: (i+1)*NSAMPLES]
-
-        for sample in range(NSAMPLES):
-
-            SCENE = Scene.create(save_dir)
-
-            location = np.array([yc[sample], xc[sample]], dtype=np.float32).reshape((1,1,2))
-            strength = np.array([tau[sample]], dtype=np.float32).reshape((1,1))
-            stddev = np.array([sigma[sample]], dtype=np.float32).reshape((1,1,1))
-
-            world_obj = World()
-            vorticity = AngularVelocity(location=location,
-                                        strength=strength,
-                                        falloff=partial(gaussian_falloff, sigma=stddev))
-
-            velocity_0 = vorticity.at(FLOW.velocity)
-
-            fluid = world_obj.add(Fluid(domain=domain, velocity=velocity_0), physics=IncompressibleFlow())
-
-            np.savez(os.path.join(SCENE.path, 'velocity_000000.npz'), velocity_0.sample_at(domain.center_points()))
-
-            for step in range(NUM_TIME_STEPS):
-                world_obj.step()
-                filename = 'velocity_' + '0' * (6 - len(str(step+1))) + str(step+1) + '.npz'
-                np.savez(os.path.join(SCENE.path, filename), fluid.velocity.sample_at(domain.center_points()))
-
-            np.savez(os.path.join(SCENE.path, 'location_000000.npz'), location)
-            np.savez(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
-            np.savez(os.path.join(SCENE.path, 'sigma_000000.npz'), stddev)
-
-            print('Writing Simulation Case: {}'.format(SCENE.path))
-            GLOBAL_STEP += 1
+test_ycoords, test_xcoords = ycoords[-N_TEST_SAMPLES:], xcoords[-N_TEST_SAMPLES:]
+test_strengths, test_sigmas = strengths[-N_TEST_SAMPLES:], sigmas[-N_TEST_SAMPLES:]
 
 
-for zone_y_id in range(NZONES[0]):
-    for zone_x_id in range(NZONES[1]):#
+domain = Domain(RESOLUTION, boundaries=OPEN)
+FLOW_REF = Fluid(domain)
 
-        print('Creating dataset for zone: ({}, {})'.format(zone_y_id, zone_x_id))
-        ycoords = np.random.random_sample(size=SAMPLES_PER_ZONE) * domain_y_div_size + y_split[zone_y_id] + OFFSET[0]
-        xcoords = np.random.random_sample(size=SAMPLES_PER_ZONE) * domain_x_div_size + x_split[zone_x_id] + OFFSET[1]
+location_pl = tf.placeholder(shape=(1, 1, 2), dtype=tf.float32)
+strength_pl = tf.placeholder(shape=(1, 1), dtype=tf.float32)
+sigma_pl = tf.placeholder(shape=(1, 1, 1), dtype=tf.float32)
 
-        train_y_coords = ycoords[:int(SAMPLES_PER_ZONE * TRAIN_PERCENT)]
-        train_x_coords = xcoords[:int(SAMPLES_PER_ZONE * TRAIN_PERCENT)]
+vorticity = AngularVelocity(location=location_pl,
+                            strength=strength_pl,
+                            falloff=partial(gaussian_falloff, sigma=sigma_pl))
 
-        eval_y_coords = ycoords[int(SAMPLES_PER_ZONE * TRAIN_PERCENT): int(SAMPLES_PER_ZONE * (TRAIN_PERCENT + VAL_PERCENT))]
-        eval_x_coords = xcoords[int(SAMPLES_PER_ZONE * TRAIN_PERCENT): int(SAMPLES_PER_ZONE * (TRAIN_PERCENT + VAL_PERCENT))]
+velocity_0 = vorticity.at(FLOW_REF.velocity)
+velocities_tf = [velocity_0]
 
-        test_y_coords = ycoords[int(SAMPLES_PER_ZONE * (TRAIN_PERCENT + VAL_PERCENT)):]
-        test_x_coords = xcoords[int(SAMPLES_PER_ZONE * (TRAIN_PERCENT + VAL_PERCENT)):]
+FLOW = Fluid(domain=domain, velocity=velocity_0)
+fluid = world.add(FLOW, physics=IncompressibleFlow())
+print(velocity_0)
 
-        tau_range_copy = copy.deepcopy(tau_range)
-        sigma_range_copy = copy.deepcopy(sigma_range)
+VELOCITY = FLOW.velocity
 
-        random.shuffle(tau_range_copy)
-        random.shuffle(sigma_range_copy)
+for step in range(NUM_TIME_STEPS):
+    world.step()
+    velocities_tf.append(fluid.velocity)
 
-        train_tau_range_list = tau_range_copy[:int(N_SIG_TAU * TRAIN_PERCENT)]
-        train_sigma_range_list = sigma_range_copy[:int(N_SIG_TAU * TRAIN_PERCENT)]
+velocity_filenames = ['velocity_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS)]
+sess = Session(None)
 
-        eval_tau_range_list = tau_range_copy[int(N_SIG_TAU * TRAIN_PERCENT): int(N_SIG_TAU * (TRAIN_PERCENT + VAL_PERCENT))]
-        eval_sigma_range_list = sigma_range_copy[int(N_SIG_TAU * TRAIN_PERCENT): int(N_SIG_TAU * (TRAIN_PERCENT + VAL_PERCENT))]
+train_dir = os.path.join(DIRECTORY, 'train')
 
-        test_tau_range_list = tau_range_copy[int(N_SIG_TAU * (TRAIN_PERCENT + VAL_PERCENT)):]
-        test_sigma_range_list = sigma_range_copy[int(N_SIG_TAU * (TRAIN_PERCENT + VAL_PERCENT)):]
+for id in range(N_TRAIN_SAMPLES):
+    SCENE = Scene.create(train_dir)
+    location = np.reshape(np.array([train_ycoords[id], train_xcoords[id]]), (1, 1, 2)).astype(np.float32)
+    strength = np.reshape(train_strengths[id], (1, 1)).astype(np.float32)
+    sigma = np.reshape(train_sigmas[id], (1, 1, 1)).astype(np.float32)
+    velocities = sess.run(velocities_tf, feed_dict={location_pl: location, strength_pl: strength, sigma_pl: sigma})
 
-        create_dataset_vortex(train_y_coords, train_x_coords,
-                              train_tau_range_list, train_sigma_range_list,
-                              os.path.join(DIRECTORY, 'train'))
-        create_dataset_vortex(eval_y_coords, eval_x_coords,
-                              eval_tau_range_list, eval_sigma_range_list,
-                              os.path.join(DIRECTORY, 'eval'))
-        create_dataset_vortex(test_y_coords, test_x_coords,
-                              test_tau_range_list, test_sigma_range_list,
-                              os.path.join(DIRECTORY, 'test'))
+    np.savez_compressed(os.path.join(SCENE.path, 'location_000000.npz'), location)
+    np.savez_compressed(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
+    np.savez_compressed(os.path.join(SCENE.path, 'sigma_000000.npz'), sigma)
 
-#
-#
+    for frame in range(NUM_TIME_STEPS):
+        np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
 
+val_dir = os.path.join(DIRECTORY, 'val')
 
+for id in range(N_VAL_SAMPLES):
+    SCENE = Scene.create(val_dir)
+    location = np.reshape(np.array([val_ycoords[id], val_xcoords[id]]), (1, 1, 2)).astype(np.float32)
+    strength = np.reshape(val_strengths[id], (1, 1)).astype(np.float32)
+    sigma = np.reshape(val_sigmas[id], (1, 1, 1)).astype(np.float32)
+    velocities = sess.run(velocities_tf, feed_dict={location_pl: location, strength_pl: strength, sigma_pl: sigma})
 
+    np.savez_compressed(os.path.join(SCENE.path, 'location_000000.npz'), location)
+    np.savez_compressed(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
+    np.savez_compressed(os.path.join(SCENE.path, 'sigma_000000.npz'), sigma)
 
+    for frame in range(NUM_TIME_STEPS):
+        np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
 
+test_dir = os.path.join(DIRECTORY, 'test')
+
+for id in range(N_TEST_SAMPLES):
+    SCENE = Scene.create(test_dir)
+    location = np.reshape(np.array([test_ycoords[id], test_xcoords[id]]), (1, 1, 2)).astype(np.float32)
+    strength = np.reshape(test_strengths[id], (1, 1)).astype(np.float32)
+    sigma = np.reshape(test_sigmas[id], (1, 1, 1)).astype(np.float32)
+    velocities = sess.run(velocities_tf, feed_dict={location_pl: location, strength_pl: strength, sigma_pl: sigma})
+
+    np.savez_compressed(os.path.join(SCENE.path, 'location_000000.npz'), location)
+    np.savez_compressed(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
+    np.savez_compressed(os.path.join(SCENE.path, 'sigma_000000.npz'), sigma)
+
+    for frame in range(NUM_TIME_STEPS):
+        np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
