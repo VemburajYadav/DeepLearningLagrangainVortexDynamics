@@ -87,10 +87,7 @@ velocity_0 = vorticity.at(FLOW_REF.velocity)
 velocities_tf = [velocity_0]
 
 FLOW = Fluid(domain=domain, velocity=velocity_0)
-fluid = world.add(FLOW, physics=IncompressibleFlow())
-print(velocity_0)
-
-VELOCITY = FLOW.velocity
+fluid = world.add(Fluid(domain=domain, velocity=velocity_0), physics=IncompressibleFlow())
 
 for step in range(NUM_TIME_STEPS):
     world.step()
