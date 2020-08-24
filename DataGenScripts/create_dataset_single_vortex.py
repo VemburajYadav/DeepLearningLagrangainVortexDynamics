@@ -5,20 +5,20 @@ import os
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
+parser.add_argument('--domain', type=list, default=[128, 128], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--offset', type=list, default=[24, 24], help='neglect regions near boundaries of the '
                                                                   'domain (as list: [24, 24])')
 parser.add_argument('--n_samples', type=int, default=8000, help='number of samples to be generated')
-parser.add_argument('--strength_range', type=list, default=[-0.05, 0.05], help='range for strength sampling')
-parser.add_argument('--strength_threshold', type=float, default=0.01, help='minimum value of magnitude of strength')
-parser.add_argument('--sigma_range', type=list, default=[5.0, 55.0], help='range for core ize sampling')
+parser.add_argument('--strength_range', type=list, default=[-2, 2], help='range for strength sampling')
+parser.add_argument('--strength_threshold', type=float, default=1.0, help='minimum value of magnitude of strength')
+parser.add_argument('--sigma_range', type=list, default=[5.0, 50.0], help='range for core ize sampling')
 parser.add_argument('--train_percent', type=float, default=0.6, help='percentage of data sampled from each zone for '
                                                                      'training')
 parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage of data sampled from each zone for '
                                                                     'validation')
-parser.add_argument('--num_time_steps', type=int, default=500, help='number of time steps to adfvance the simulation '
+parser.add_argument('--num_time_steps', type=int, default=100, help='number of time steps to adfvance the simulation '
                                                                    'for each sample')
-parser.add_argument('--save_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset',
+parser.add_argument('--save_dir', type=str, default='../../data/single_vortex_dataset_128x128_8000',
                     help='diretory to save the generated dataset')
 
 opt = parser.parse_args()
@@ -93,7 +93,7 @@ for step in range(NUM_TIME_STEPS):
     world.step()
     velocities_tf.append(fluid.velocity)
 
-velocity_filenames = ['velocity_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS)]
+velocity_filenames = ['velocity_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS + 1)]
 sess = Session(None)
 
 train_dir = os.path.join(DIRECTORY, 'train')
@@ -109,7 +109,7 @@ for id in range(N_TRAIN_SAMPLES):
     np.savez_compressed(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
     np.savez_compressed(os.path.join(SCENE.path, 'sigma_000000.npz'), sigma)
 
-    for frame in range(NUM_TIME_STEPS):
+    for frame in range(NUM_TIME_STEPS + 1):
         np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
 
 val_dir = os.path.join(DIRECTORY, 'val')
@@ -125,7 +125,7 @@ for id in range(N_VAL_SAMPLES):
     np.savez_compressed(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
     np.savez_compressed(os.path.join(SCENE.path, 'sigma_000000.npz'), sigma)
 
-    for frame in range(NUM_TIME_STEPS):
+    for frame in range(NUM_TIME_STEPS + 1):
         np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
 
 test_dir = os.path.join(DIRECTORY, 'test')
@@ -141,5 +141,5 @@ for id in range(N_TEST_SAMPLES):
     np.savez_compressed(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
     np.savez_compressed(os.path.join(SCENE.path, 'sigma_000000.npz'), sigma)
 
-    for frame in range(NUM_TIME_STEPS):
+    for frame in range(NUM_TIME_STEPS + 1):
         np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
