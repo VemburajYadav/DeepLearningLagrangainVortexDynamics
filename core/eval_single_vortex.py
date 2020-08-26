@@ -9,7 +9,7 @@ from core.datasets import SingleVortexDataset
 import argparse
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from phi.flow import Domain
+from phi.flow import Domain, Fluid, OPEN
 from core.networks import SimpleNN
 import os
 
