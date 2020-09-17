@@ -1,25 +1,25 @@
 import torch
 import numpy as np
-from core.networks import *
-from phi.flow import Domain, Fluid, OPEN
+from phi.flow import Domain, Fluid, OPEN, math
 import torch.nn.functional as F
-from core.custom_functions import  *
 import matplotlib.pyplot as plt
 import argparse
 import os
 import matplotlib.animation as animation
+from core.networks import *
+from core.custom_functions import *
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[128, 128], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--case_path', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_128x128_8000/train/sim_000224',
+parser.add_argument('--case_path', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_128x128_8000/train/sim_000202',
                     help='path to the directory with data to make predictions')
-parser.add_argument('--load_weights_ex', type=str, default='T5_off_splus_weight_0.9_depth_3_512_lr_1e-4_l2_1e-5_T1_init', help='name of the experiment to load weights from')
+parser.add_argument('--load_weights_ex', type=str, default='T5_off_splus_weight_0.5_depth_3_512_lr_1e-4_l2_1e-5_T1_init', help='name of the experiment to load weights from')
 parser.add_argument('--depth', type=int, default=3, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=512, help='number of neurons in hidden layers')
-parser.add_argument('--num_time_steps', type=int, default=100, help='number of time steps to make predictions for')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
+parser.add_argument('--num_time_steps', type=int, default=5, help='number of time steps to make predictions for')
 parser.add_argument('--kernel', type=str, default='offset-gaussian', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
@@ -112,26 +112,12 @@ with torch.no_grad():
 loss_all = torch.stack(losses, dim=-1)
 features = torch.stack(vortex_features, dim=-1)
 
-# create OpenCV video writer
-max_val = velocities[0].max()
-min_val = -max_val
-
-fig, ax = plt.subplots()
-ax1 = fig.add_subplot(1,2,1)
-ax2 = fig.add_subplot(1,2,2)
-
-ims = []
-for i in range(NUM_TIME_STEPS + 1):
-
-    img = np.concatenate([velocities[i][0, :, :, 1], pred_velocites[i].cpu().numpy()[0, :, :, 1]], axis=-1)
-    im1 = ax1.imshow(velocities[i][0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val, animated=True)
-    im2 = ax2.imshow(pred_velocites[i].cpu().numpy()[0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val, animated=True)
-    ax1.set_title('Target Velocity- y')
-    ax2.set_title('Predicted Velocity- y')
-    #
-    # ax.set_title('Time step: {}, Loss: {:.2f}'.format(i, losses[i]))
-    ims.append([im1, im2])
-#
-ani = animation.ArtistAnimation(fig, ims, interval=200, blit=False,
-                                repeat_delay=1000)
+plt.figure()
+legend_list = []
+for i in range(opt.num_time_steps + 1):
+    plt.plot(math.abs(velocities[i][0, :, loc_x, 1]))
+    plt.plot(math.abs(pred_velocites[i].cpu().numpy()[0, :, loc_x, 1]), '--')
+    legend_list.append('True: {}'.format(i))
+    legend_list.append('Pred: {}'.format(i))
+plt.legend(legend_list)
 plt.show()

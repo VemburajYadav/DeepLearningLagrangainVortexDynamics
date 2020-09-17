@@ -3,7 +3,8 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import Adam
-from core.custom_functions import particle_vorticity_to_velocity
+from core.custom_functions import\
+    particle_vorticity_to_velocity_gaussian, particle_vorticity_to_velocity_offset_gaussian
 from torch.utils.tensorboard import SummaryWriter
 from core.datasets import SingleVortexDataset
 import argparse
@@ -21,7 +22,8 @@ parser.add_argument('--data_dir', type=str, default='/home/vemburaj/phi/data/sin
 parser.add_argument('--ex', type=str, default='train_demo_3', help='name of the experiment')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=1024, help='number of neurons in hidden layers')
-
+parser.add_argument('--kernel', type=str, default='offset-gaussian', help='kernel representing vorticity strength filed. options:'
+                                                                   ' "guassian" or "offset-gaussian" ')
 opt = parser.parse_args()
 
 RESOLUTION = opt.domain
@@ -40,7 +42,14 @@ ckpt_file = os.path.join(ckpt_dir, checkpoints_files[epoch_id])
 dataset = SingleVortexDataset(data_dir)
 dataloader = DataLoader(dataset, batch_size=1, drop_last=True, shuffle=True, pin_memory=True)
 
-model_ = SimpleNN(depth=opt.depth, hidden_units=opt.hidden_units, in_features=4, out_features=4)
+if opt.kernel is 'gaussian':
+    num_in_features = 4
+    num_out_features = 4
+else:
+    num_in_features = 6
+    num_out_features = 6
+
+model_ = SimpleNN(depth=opt.depth, hidden_units=opt.hidden_units, in_features=num_in_features, out_features=num_out_features)
 model_.eval()
 
 params = torch.load(ckpt_file)['model_state_dict']
@@ -61,7 +70,6 @@ with torch.no_grad():
 
     pvel0 = torch.tensor([0.0, 0.0], dtype=torch.float32).view(1, -1).repeat(1, 1)
 
-    print(tau.shape, sig.shape)
     inp = torch.cat([torch.squeeze(tau, dim=1),
                      torch.squeeze(sig, dim=1), pvel0], dim=-1)
 
