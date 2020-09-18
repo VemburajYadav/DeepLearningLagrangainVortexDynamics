@@ -79,29 +79,45 @@ def kernelNextStep(loc_y, loc_x, tau_, sig_, py_, px_):
     return f, vel
 
 
+def kernelNextStep2(loc_y, loc_x, tau_, sig_, py_, px_):
+
+    dist_ = math.sqrt((px_ - loc_x) ** 2 + (py_ - loc_y) ** 2)
+    f = math.exp(-dist_**2 / sig_**2) * math.exp(-(tau_**2 / sig_**2) * math.exp(-2.0 * dist_**2 / sig_**2)) * dist_ \
+        / math.sqrt((dist_**2 + (tau_**2 / sig_**2) * math.exp(-2.0 * dist_**2 / sig_**2)))
+    dist_y_ = py_ - loc_y
+    vel = -tau_ * f * dist_y_ / dist_
+    return f, vel
+
 plt.figure()
 p = offset_gaussians(location[0, 0, 0], 3.5, 19.63, 2.5115, py)
 p1, vel1 = kernelNextStep(location[0,0,0], location[0,0,1], strength[0,0], sigma[0,0,0], py, px)
+p2, vel2 = kernelNextStep2(location[0,0,0], location[0,0,1], strength[0,0], sigma[0,0,0], py, px)
+
 # plt.plot(py, kernel_values[0])
 # plt.plot(py, kernel_values[1])
 # plt.plot(py, p)
 plt.plot(py, math.abs(vel_values[0]))
 plt.plot(py, math.abs(vel_values[1]))
 plt.plot(py, math.abs(vel1))
-plt.plot(py, math.abs(vel_values[1]) / math.abs(vel1))
-plt.legend(['T0', 'T1', 'T1_KERNEL', 'Factor'])
+plt.plot(py, math.abs(vel2))
+# plt.plot(py, math.abs(vel_values[1]) / math.abs(vel1))
+plt.legend(['T0', 'T1', 'T1_KERNEL', 'T1_KERNEL_2'])
 # plt.legend(['Time step: 0', 'Time step: 1', 'Time step: 1 Fit'])
 # plt.show()
 
-c, d, sigg = 5.0, 10.0, 25.0
-xg = np.linspace(-64.0, 64.0, 1000)
+c, d, sigg = 5.0, 20.0, 25.0
+xg = np.linspace(-64.0, 64.0, 100000)
 yg = np.exp(-c * np.exp(-d * xg**2 / sigg**2))
+yg_2 = np.exp(-c * np.exp(-d * xg**2 / sigg**2)) * np.abs(xg) / np.sqrt(xg**2 + c * np.exp(-d * xg**2))
 gausg = np.exp(-xg**2 / sigg**2)
 plt.figure()
-plt.plot(xg, yg)
 plt.plot(xg, gausg)
-plt.plot(xg, gausg * yg / (yg * gausg).max())
+plt.plot(xg, yg)
+plt.plot(xg, yg_2)
+# plt.plot(xg, gausg * yg / (yg * gausg).max())
 plt.plot(xg, gausg * yg)
+plt.plot(xg, gausg * yg_2)
+plt.legend(['Guassian', 'Kernel', 'Kernel_Angle', 'Product', 'Product_2'])
 plt.show()
 
 # plt.figure()

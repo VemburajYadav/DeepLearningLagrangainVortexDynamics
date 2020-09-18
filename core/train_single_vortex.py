@@ -18,17 +18,17 @@ parser.add_argument('--domain', type=list, default=[128, 128], help='resolution 
 parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
 parser.add_argument('--data_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_128x128_8000',
                     help='path to save training summaries and checkpoints')
-parser.add_argument('--num_time_steps', type=int, default=10, help='train the network on loss for more than 1 time step')
+parser.add_argument('--num_time_steps', type=int, default=1, help='train the network on loss for more than 1 time step')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for training')
 parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-4, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='T10_off_splus_weight_0.2_depth_3_512_lr_1e-3_l2_1e-4', help='name of the experiment')
+parser.add_argument('--ex', type=str, default='T1_exp_weight_1.0_depth_3_512_lr_1e-3_l2_1e-4', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
 parser.add_argument('--depth', type=int, default=3, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=512, help='number of neurons in hidden layers')
-parser.add_argument('--kernel', type=str, default='offset-gaussian', help='kernel representing vorticity strength filed. options:'
+parser.add_argument('--kernel', type=str, default='ExpGaussian', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
 # MEAN = [64.0, 0.0, 27.5]
@@ -111,8 +111,8 @@ if opt.ex == opt.load_weights_ex:
     optimizer.load_state_dict(torch.load(init_weights_ckpt_file)['optimizer_state_dict'])
     start_epoch = torch.load(init_weights_ckpt_file)['epoch']
 
-# scheduler = StepLR(optimizer, 50, gamma=0.1)
-scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5)
+scheduler = StepLR(optimizer, 50, gamma=0.1)
+# scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5)
 
 train_summary = SummaryWriter(log_dir=train_summaries_dir)
 val_summary = SummaryWriter(log_dir=val_summaries_dir)
@@ -147,10 +147,14 @@ for epoch in range(start_epoch, opt.epochs):
 
         if opt.kernel == 'gaussian':
             inp_vector = torch.stack([y, x, tau, sig, v, u], dim=-1)
-        if opt.kernel == 'offset-gaussian':
+        elif opt.kernel == 'offset-gaussian':
             off = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
             sig_l = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
             inp_vector = torch.stack([y, x, tau, sig, v, u, off, sig_l], dim=-1)
+        elif opt.kernel == 'ExpGaussian':
+            c = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
+            d = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
+            inp_vector = torch.stack([y, x, tau, sig, v, u, c, d], dim=-1)
 
         vortex_features = VortexNet(inp_vector)
         mse_loss_list, max_loss_list = train_loss_module(vortex_features, velocities)
@@ -187,10 +191,14 @@ for epoch in range(start_epoch, opt.epochs):
 
             if opt.kernel == 'gaussian':
                 inp_vector = torch.stack([y, x, tau, sig, v, u], dim=-1)
-            if opt.kernel == 'offset-gaussian':
+            elif opt.kernel == 'offset-gaussian':
                 off = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
                 sig_l = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
                 inp_vector = torch.stack([y, x, tau, sig, v, u, off, sig_l], dim=-1)
+            elif opt.kernel == 'ExpGaussian':
+                c = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
+                d = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
+                inp_vector = torch.stack([y, x, tau, sig, v, u, c, d], dim=-1)
 
             vortex_features = VortexNet(inp_vector)
             mse_loss_list, max_loss_list = val_loss_module(vortex_features, velocities)
@@ -217,4 +225,5 @@ for epoch in range(start_epoch, opt.epochs):
 
             val_best = val_loss.item()
 
-    scheduler.step(metrics=val_loss, epoch=epoch)
+    # scheduler.step(metrics=val_loss, epoch=epoch)
+    scheduler.step(epoch=epoch)

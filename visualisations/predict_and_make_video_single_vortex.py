@@ -17,7 +17,7 @@ parser.add_argument('--case_path', type=str, default='/home/vemburaj/phi/data/si
 parser.add_argument('--load_weights_ex', type=str, default='T5_off_splus_weight_0.9_depth_3_512_lr_1e-4_l2_1e-5_T1_init', help='name of the experiment to load weights from')
 parser.add_argument('--depth', type=int, default=3, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=512, help='number of neurons in hidden layers')
-parser.add_argument('--num_time_steps', type=int, default=100, help='number of time steps to make predictions for')
+parser.add_argument('--num_time_steps', type=int, default=5, help='number of time steps to make predictions for')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
 parser.add_argument('--kernel', type=str, default='offset-gaussian', help='kernel representing vorticity strength filed. options:'
