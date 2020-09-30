@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from core.datasets import SingleVortexDataset
@@ -14,18 +14,18 @@ import os
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--domain', type=list, default=[128, 128], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
-parser.add_argument('--data_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_128x128_8000',
+parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
+parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
+parser.add_argument('--data_dir', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_256x256_8000',
                     help='path to save training summaries and checkpoints')
-parser.add_argument('--num_time_steps', type=int, default=1, help='train the network on loss for more than 1 time step')
+parser.add_argument('--num_time_steps', type=int, default=2, help='train the network on loss for more than 1 time step')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for training')
 parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-4, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='T1_exp_weight_1.0_depth_3_512_lr_1e-3_l2_1e-4', help='name of the experiment')
-parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
+parser.add_argument('--ex', type=str, default='T2_exp_weight_1.0_depth_3_512_lr_1e-3_l2_1e-4_r256', help='name of the experiment')
+parser.add_argument('--load_weights_ex', type=str, default='T2_exp_weight_1.0_depth_3_512_lr_1e-3_l2_1e-4_r256', help='name of the experiment')
 parser.add_argument('--depth', type=int, default=3, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=512, help='number of neurons in hidden layers')
 parser.add_argument('--kernel', type=str, default='ExpGaussian', help='kernel representing vorticity strength filed. options:'
@@ -46,7 +46,9 @@ NUM_TIME_STEPS = opt.num_time_steps
 STRIDE = opt.stride
 RESOLUTION = opt.domain
 BATCH_SIZE = opt.batch_size
-weights = [0.0] + [0.2**i for i in range(NUM_TIME_STEPS)]
+weights = [0.0] + [1.0**i for i in range(NUM_TIME_STEPS)]
+
+delta_t = torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0')
 
 loss_weights = torch.tensor(weights, dtype=torch.float32, device=('cuda:0'))
 print(loss_weights)
@@ -106,21 +108,22 @@ VortexNet.to('cuda:0')
 VortexNet.requires_grad_(requires_grad=True).train()
 
 optimizer = Adam(params=VortexNet.parameters(), lr=opt.lr, weight_decay=opt.l2)
+# optimizer = SGD(params=VortexNet.parameters(), lr=opt.lr, momentum=0.9, weight_decay=opt.l2)
 
 if opt.ex == opt.load_weights_ex:
     optimizer.load_state_dict(torch.load(init_weights_ckpt_file)['optimizer_state_dict'])
     start_epoch = torch.load(init_weights_ckpt_file)['epoch']
 
-scheduler = StepLR(optimizer, 50, gamma=0.1)
-# scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5)
+scheduler = StepLR(optimizer, 1, gamma=0.9)
+# scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=25)
 
 train_summary = SummaryWriter(log_dir=train_summaries_dir)
 val_summary = SummaryWriter(log_dir=val_summaries_dir)
 
 train_loss_module = MultiStepLoss(kernel=opt.kernel, resolution=opt.domain,
-                                  num_steps=opt.num_time_steps, batch_size=opt.batch_size)
+                                  num_steps=opt.num_time_steps, batch_size=opt.batch_size, dt=delta_t)
 val_loss_module = MultiStepLoss(kernel=opt.kernel, resolution=opt.domain,
-                                num_steps=opt.num_time_steps, batch_size=opt.batch_size)
+                                num_steps=opt.num_time_steps, batch_size=opt.batch_size, dt=delta_t)
 
 for epoch in range(start_epoch, opt.epochs):
 

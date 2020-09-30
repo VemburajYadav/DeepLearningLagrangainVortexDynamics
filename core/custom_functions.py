@@ -89,8 +89,10 @@ class OffsetGaussianFalloffKernel(torch.nn.Module):
 
 class GaussExpFalloffKernel(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self, dt=1.0):
         super(GaussExpFalloffKernel, self).__init__()
+        self.dt = dt
+
 
     def forward(self, vortex_feature, points):
         y, x, tau, sig, v, u, c, d = torch.unbind(vortex_feature, dim=-1)
@@ -116,7 +118,7 @@ class GaussExpFalloffKernel(torch.nn.Module):
         sq_distance = torch.sum(distances ** 2, dim=-1, keepdim=True)
 
         gaussian_part = torch.exp(-sq_distance / src_sigma**2)
-        exp1 = torch.exp(-src_d * sq_distance / src_sigma**2)
+        exp1 = torch.exp(-src_d * self.dt**2 * sq_distance / src_sigma**2)
         exponential_part = torch.exp(-src_c * exp1) / torch.sqrt(sq_distance + src_c * exp1)
         falloff_value = gaussian_part * exponential_part
         strength = src_strength * falloff_value

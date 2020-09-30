@@ -11,15 +11,15 @@ from core.custom_functions import *
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--domain', type=list, default=[128, 128], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--case_path', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_128x128_8000/train/sim_000202',
+parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
+parser.add_argument('--case_path', type=str, default='/home/vemburaj/phi/data/single_vortex_dataset_256x256_8000/train/sim_000422',
                     help='path to the directory with data to make predictions')
-parser.add_argument('--load_weights_ex', type=str, default='T1_exp_weight_1.0_depth_3_512_lr_1e-3_l2_1e-4', help='name of the experiment to load weights from')
+parser.add_argument('--load_weights_ex', type=str, default='T2_exp_weight_1.0_depth_3_512_lr_1e-3_l2_1e-4_r256', help='name of the experiment to load weights from')
 parser.add_argument('--depth', type=int, default=3, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=512, help='number of neurons in hidden layers')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
-parser.add_argument('--num_time_steps', type=int, default=1, help='number of time steps to make predictions for')
+parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to make predictions for')
 parser.add_argument('--kernel', type=str, default='ExpGaussian', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
@@ -45,6 +45,7 @@ points_y = FLOW.velocity.data[0].points.data
 points_x = FLOW.velocity.data[1].points.data
 
 loc_x = int(location[0, 0, 1])
+loc_y = int(location[0, 0, 0])
 
 py = points_x[0, :, loc_x, 0]
 px = np.array([loc_x] * len(py), dtype=np.float32)
@@ -92,7 +93,7 @@ if opt.kernel == 'ExpGaussian':
     c0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
     d0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
     inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1), v0, u0, c0, d0], dim=-1)
-    falloff_kernel = GaussExpFalloffKernel()
+    falloff_kernel = GaussExpFalloffKernel(dt=torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0'))
 elif opt.kernel == 'gaussian':
     inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1), v0, u0], dim=-1)
     falloff_kernel = GaussianFalloffKernel()
@@ -120,9 +121,11 @@ features = torch.stack(vortex_features, dim=-1)
 plt.figure()
 legend_list = []
 for i in range(opt.num_time_steps + 1):
-    plt.plot(math.abs(velocities[i][0, :, loc_x, 1]))
-    plt.plot(math.abs(pred_velocites[i].cpu().numpy()[0, :, loc_x, 1]), '--')
-    legend_list.append('True: {}'.format(i))
-    legend_list.append('Pred: {}'.format(i))
+    plt.plot(math.abs(velocities[i][0, loc_y-40:loc_y+40, loc_x, 1]))
+    legend_list.append('True: {}'.format(i*opt.stride))
+    if i > 0:
+        plt.plot(math.abs(pred_velocites[i].cpu().numpy()[0, loc_y-40:loc_y+40, loc_x, 1]), '--')
+        legend_list.append('Pred: {}'.format(i*opt.stride))
 plt.legend(legend_list)
+plt.title(opt.kernel + ':-  '+ 'Strength: {:.2f}, Stddev: {:.2f}, Loss: {:.2f}'.format(strength[0, 0], sigma[0, 0, 0], loss_all.sum().item()))
 plt.show()

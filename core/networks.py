@@ -96,7 +96,7 @@ class VortexNetwork(torch.nn.Module):
             y_new = y + dy * 0.1
             x_new = x + dx * 0.1
             tau_new = tau + dtau
-            sig_new = sig + dsig
+            sig_new = sig + F.softplus(dsig)
             v_new = y_new - y
             u_new = x_new - x
 
@@ -154,15 +154,15 @@ class VortexNetwork(torch.nn.Module):
 
             net_out = self.net(inp_vec)
 
-            dy, dx, dtau, dsig, c_, d_ = torch.unbind(net_out, dim=-1)
+            dy, dx, dtau, dsig, dc, dd = torch.unbind(net_out, dim=-1)
             y_new = y + dy * 0.1
             x_new = x + dx * 0.1
             tau_new = tau + dtau
             sig_new = sig + dsig
             v_new = y_new - y
             u_new = x_new - x
-            c_new = F.softplus(c_)
-            d_new  = F.softplus(d_)
+            c_new = F.softplus(dc)
+            d_new  = F.softplus(dd)
 
             out = torch.stack([y_new * self.pos_s + self.pos_m, x_new * self.pos_s + self.pos_m,
                                tau_new * self.tau_s + self.tau_m, sig_new * self.sig_s + self.sig_m,
@@ -199,7 +199,7 @@ class MultiStepVortexNetwork(torch.nn.Module):
 
 class MultiStepLoss(torch.nn.Module):
 
-    def __init__(self, kernel='gaussian', resolution=(128, 128), num_steps=1, batch_size=1):
+    def __init__(self, kernel='gaussian', resolution=(128, 128), num_steps=1, batch_size=1, dt=1.0):
 
         super(MultiStepLoss, self).__init__()
 
@@ -224,7 +224,7 @@ class MultiStepLoss(torch.nn.Module):
             self.falloff_kernel = OffsetGaussianFalloffKernel()
         elif kernel == 'ExpGaussian':
             self.n_features = 6
-            self.falloff_kernel = GaussExpFalloffKernel()
+            self.falloff_kernel = GaussExpFalloffKernel(dt=dt)
 
         self.multi_step_falloff_kernel = torch.nn.ModuleList([self.falloff_kernel for step in range(num_steps + 1)])
 
