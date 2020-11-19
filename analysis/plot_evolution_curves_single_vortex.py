@@ -28,8 +28,8 @@ if not os.path.isdir(save_path):
 
 opt = parser.parse_args()
 
-STRENGTH_LIST = [1.6, 1.6, 1.6, 1.6, 1.6, 1.6]
-SIGMA_LIST = [5.0, 9.0, 13.0, 17.0, 21.0, 25.0]
+STRENGTH_LIST = [1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
+SIGMA_LIST = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
 location = [35.8, 46.7] * len(STRENGTH_LIST)
 
 logs_dir = os.path.join('../logs', opt.load_weights_ex)
@@ -86,16 +86,16 @@ for case in range(len(STRENGTH_LIST)):
     legend_list.append('Strength: {:.2f}, Core Size: {:.2f}'.format(STRENGTH_LIST[case], SIGMA_LIST[case]))
 plt.legend(legend_list)
 plt.title('Evolution of Vortex Strength')
-# plt.show()
-plt.savefig(os.path.join(save_path, 'Strength.png'))
+plt.show()
+# plt.savefig(os.path.join(save_path, 'Strength.png'))
 
 plt.figure()
 for case in range(len(STRENGTH_LIST)):
     plt.plot(t, sigs[case, :], 'x-')
 plt.legend(legend_list)
 plt.title('Evolution of Vortex Core Size')
-# plt.show()
-plt.savefig(os.path.join(save_path, 'CoreSize.png'))
+plt.show()
+# plt.savefig(os.path.join(save_path, 'CoreSize.png'))
 
 if opt.kernel == 'offset-gaussian':
     sigls = feature_tensor[:, 7]
@@ -134,8 +134,8 @@ if opt.kernel == 'ExpGaussian':
         legend_list.append('Strength: {:.2f}, Core Size: {:.2f}'.format(STRENGTH_LIST[case], SIGMA_LIST[case]))
     plt.legend(legend_list)
     plt.title('Evolution of Parameter c')
-    # plt.show()
-    plt.savefig(os.path.join(save_path, 'Param_c.png'))
+    plt.show()
+    # plt.savefig(os.path.join(save_path, 'Param_c.png'))
 
     ds = feature_tensor[:, 7]
     plt.figure()
@@ -144,8 +144,8 @@ if opt.kernel == 'ExpGaussian':
         legend_list.append('Strength: {:.2f}, Core Size: {:.2f}'.format(STRENGTH_LIST[case], SIGMA_LIST[case]))
     plt.legend(legend_list)
     plt.title('Evolution of Parameter d')
-    # plt.show()
-    plt.savefig(os.path.join(save_path, 'Param_d.png'))
+    plt.show()
+    # plt.savefig(os.path.join(save_path, 'Param_d.png'))
 
 
 
