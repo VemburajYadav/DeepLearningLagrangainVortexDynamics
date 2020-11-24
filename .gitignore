@@ -20,5 +20,6 @@ var/
 *.egg
 data/
 logs/
+logs*/
 *.png
 *.jpg

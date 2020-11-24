@@ -12,20 +12,20 @@ from core.custom_functions import *
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--case_path', type=str, default='/media/vemburaj/9d072277-d226-41f6-a38d-1db833dca2bd'
-                                                     '/data/p2_r_dataset_256x256_32000/test/sim_001617',
+parser.add_argument('--case_path', type=str, default='/home/vemburaj'
+                                                     '/data/p2_r_dataset_256x256_32000/train/sim_001474',
                     help='path to the directory with data to make predictions')
-parser.add_argument('--load_weights_ex', type=str, default='p2_r_T1_exp_weight_1.0_depth_5_100_batch_64_c3d_'
-                                                           'lr_1e-3_l2_1e-5_r256_32000_1',
+parser.add_argument('--load_weights_ex', type=str, default='p2_r_T2_exp_red(6)_weight_1.0_depth_5_100_batch_32_'
+                                                           'lr_1e-3_l2_1e-4_r256_32000_2',
                     help='name of the experiment to load weights from')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--distinct_nets', type=bool, default=False, help='True for two networks for multi step training and False for single network')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
-parser.add_argument('--order', type=int, default=1, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
-parser.add_argument('--num_time_steps', type=int, default=1, help='number of time steps to make predictions for')
-parser.add_argument('--kernel', type=str, default='ExpGaussian', help='kernel representing vorticity strength filed. options:'
+parser.add_argument('--order', type=int, default=2, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
+parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to make predictions for')
+parser.add_argument('--kernel', type=str, default='ExpGaussianRed', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
 opt = parser.parse_args()
@@ -60,8 +60,8 @@ loc_y2 = int(location[0, 1, 0])
 py1 = points_x[0, :, loc_x1, 0]
 px1 = np.array([loc_x1] * len(py1), dtype=np.float32)
 
-py2 = points_x[0, :, loc_x1, 0]
-px2 = np.array([loc_x1] * len(py1), dtype=np.float32)
+py2 = points_x[0, :, loc_x2, 0]
+px2 = np.array([loc_x2] * len(py2), dtype=np.float32)
 
 px1_ = points_y[0, loc_y1, :, 1]
 py1_ = np.array([loc_y1] * len(px1_), dtype=np.float32)
@@ -122,6 +122,11 @@ if opt.kernel == 'ExpGaussian':
     py, px = torch.unbind(loc_gpu, dim=-1)
     inp_feature = torch.stack([py, px, tau_gpu.view(-1, nparticles), sig_gpu.view(-1, nparticles), c0, d0], dim=-1)
     falloff_kernel = GaussExpFalloffKernel(dt=torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0'))
+if opt.kernel == 'ExpGaussianRed':
+    d0 = torch.zeros((1, nparticles), dtype=torch.float32, device='cuda:0') + 0.001
+    py, px = torch.unbind(loc_gpu, dim=-1)
+    inp_feature = torch.stack([py, px, tau_gpu.view(-1, nparticles), sig_gpu.view(-1, nparticles), d0], dim=-1)
+    falloff_kernel = GaussExpFalloffKernelReduced(dt=torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0'))
 elif opt.kernel == 'gaussian':
     inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1)], dim=-1)
     falloff_kernel = GaussianFalloffKernel()
@@ -177,6 +182,7 @@ plt.axvline(x=loc_y1, color='r')
 plt.axvline(x=loc_y2, color='b')
 plt.legend(legend_list)
 plt.title('Particle 2 (Blue) :- ' + 'Distance: {:.2f}, Strength: {:.2f}, Stddev: {:.2f}, Loss: {:.2f}'.format(dist, strength[1], sigma[0, 1, 0], loss_all.sum().item()))
+fig.suptitle('Variation of velocity-x along y-axis')
 plt.show()
 
 plt.figure()
@@ -209,6 +215,7 @@ plt.axvline(x=loc_x1, color='r')
 plt.axvline(x=loc_x2, color='b')
 plt.legend(legend_list)
 plt.title('Particle 2 (Blue) :- ' + 'Distance: {:.2f}, Strength: {:.2f}, Stddev: {:.2f}, Loss: {:.2f}'.format(dist, strength[1], sigma[0, 1, 0], loss_all.sum().item()))
+fig.suptitle('Variation of velocity-y along x-axis')
 plt.show()
 
 max_val = np.abs(velocities[0][0, :, :, 1]).max()
@@ -216,20 +223,20 @@ min_val = -max_val
 
 plt.figure()
 plt.subplot(1, 3, 1)
-plt.imshow(velocities[0][0, 100:200, 100:200, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.imshow(velocities[0][0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
 plt.subplot(1, 3, 2)
-plt.imshow(velocities[1][0, 100:200, 100:200, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.imshow(velocities[1][0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
 plt.subplot(1, 3, 3)
-plt.imshow(pred_velocites[1].cpu().numpy()[0, 100:200, 100:200, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.imshow(pred_velocites[1].cpu().numpy()[0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
 plt.show()
 
 plt.figure()
 plt.subplot(1, 3, 1)
-plt.imshow(velocities[0][0, 100:200, 100:200, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.imshow(velocities[0][0, :, :, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
 plt.subplot(1, 3, 2)
-plt.imshow(velocities[1][0, 100:200, 100:200, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.imshow(velocities[1][0, :, :, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
 plt.subplot(1, 3, 3)
-plt.imshow(pred_velocites[1].cpu().numpy()[0, 100:200, 100:200, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.imshow(pred_velocites[1].cpu().numpy()[0, :, :, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
 plt.show()
 
 

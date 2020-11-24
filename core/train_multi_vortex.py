@@ -16,25 +16,25 @@ import json
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
+parser.add_argument('--domain', type=list, default=[200, 200], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train for')
 parser.add_argument('--data_dir', type=str, default='/home/vemburaj/'
-                                                    'data/p2_r_dataset_256x256_32000',
+                                                    'data/p10_b_dataset_200x200_16000',
                     help='path to save training summaries and checkpoints')
 parser.add_argument('--num_time_steps', type=int, default=2, help='train the network on loss for more than 1 time step')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
-parser.add_argument('--batch_size', type=int, default=64, help='Batch Size for training')
-parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
-parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='p2_r_T2_exp_weight_1.0_depth_2_100_batch_64_c3d_lr_1e-3_l2_1e-5_r256_32000_1', help='name of the experiment')
+parser.add_argument('--batch_size', type=int, default=2, help='Batch Size for training')
+parser.add_argument('--lr', type=float, default=5e-3, help='Base learning rate')
+parser.add_argument('--l2', type=float, default=1e-4, help='weight for l2 regularization')
+parser.add_argument('--ex', type=str, default='p10_b_T2_exp_red(6)_weight_1.0_depth_10_100_batch_32_lr_5e-3_l2_1e-4_r256_16000_2', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
-parser.add_argument('--depth', type=int, default=1, help='number of hidden layers')
-parser.add_argument('--order', type=int, default=1, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
+parser.add_argument('--depth', type=int, default=10, help='number of hidden layers')
+parser.add_argument('--order', type=int, default=2, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--loss_scaling', type=float, default=1.0, help='scaling of loss for training to predict to more than one time stepo')
 parser.add_argument('--distinct_nets', type=bool, default=False, help='True for two networks for multi step training and False for single network')
-parser.add_argument('--kernel', type=str, default='ExpGaussian', help='kernel representing vorticity strength filed. options:'
+parser.add_argument('--kernel', type=str, default='ExpGaussianRed', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
 # MEAN = [64.0, 0.0, 27.5]
@@ -202,6 +202,9 @@ for epoch in range(start_epoch, opt.epochs):
             c = torch.zeros((BATCH_SIZE, nparticles), dtype=torch.float32, device='cuda:0')
             d = torch.zeros((BATCH_SIZE, nparticles), dtype=torch.float32, device='cuda:0') + 0.001
             inp_vector = torch.stack([y, x, tau, sig, c, d], dim=-1)
+        elif opt.kernel == 'ExpGaussianRed':
+            d = torch.zeros((BATCH_SIZE, nparticles), dtype=torch.float32, device='cuda:0') + 0.001
+            inp_vector = torch.stack([y, x, tau, sig, d], dim=-1)
 
         vortex_features = VortexNet(inp_vector)
         mse_loss_list, max_loss_list = train_loss_module(vortex_features, velocities)
@@ -251,6 +254,9 @@ for epoch in range(start_epoch, opt.epochs):
             c = torch.zeros((BATCH_SIZE, nparticles), dtype=torch.float32, device='cuda:0')
             d = torch.zeros((BATCH_SIZE, nparticles), dtype=torch.float32, device='cuda:0') + 0.001
             inp_vector = torch.stack([y, x, tau, sig, c, d], dim=-1)
+        elif opt.kernel == 'ExpGaussianRed':
+            d = torch.zeros((BATCH_SIZE, nparticles), dtype=torch.float32, device='cuda:0') + 0.001
+            inp_vector = torch.stack([y, x, tau, sig, d], dim=-1)
 
         vortex_features = VortexNet(inp_vector)
 

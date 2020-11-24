@@ -7,15 +7,17 @@ import json
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
+parser.add_argument('--domain', type=list, default=[200, 200], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--offset', type=list, default=[80, 80], help='neglect regions near boundaries of the '
                                                                   'domain (as list: [24, 24])')
-parser.add_argument('--n_samples', type=int, default=32000, help='number of samples to be generated')
+parser.add_argument('--n_samples', type=int, default=16000, help='number of samples to be generated')
 parser.add_argument('--n_particles', type=int, default=10, help='number of vortex particles')
 parser.add_argument('--strength_range', type=list, default=[-2, 2], help='range for strength sampling')
 parser.add_argument('--dist_range', type=list, default=[5.0, 60.0], help='distance between particles')
 parser.add_argument('--strength_threshold', type=float, default=1.0, help='minimum value of magnitude of strength')
 parser.add_argument('--sigma_range', type=list, default=[5.0, 25.0], help='range for core ize sampling')
+parser.add_argument('--sampling_type', type=str, default='box', help='whether to sample uniformly from a domain or sample'
+                                                                     ' the other particles uniformly around a first sampled particle')
 parser.add_argument('--train_percent', type=float, default=0.6, help='percentage of data sampled from each zone for '
                                                                      'training')
 parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage of data sampled from each zone for '
@@ -23,7 +25,7 @@ parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage 
 parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to adfvance the simulation '
                                                                    'for each sample')
 parser.add_argument('--save_dir', type=str, default='/home/vemburaj/'
-                                                    'data/p10_r_dataset_256x256_32000',
+                                                    'data/p10_b_dataset_200x200_16000',
                     help='diretory to save the generated dataset')
 
 opt = parser.parse_args()
@@ -39,6 +41,8 @@ SIGMA_RANGE = opt.sigma_range
 STRENGTH_THRESHOLD_MAG = opt.strength_threshold
 TRAIN_PERCENT = opt.train_percent
 VAL_PERCENT = opt.eval_percent
+
+SAMPLING_TYPE = opt.sampling_type
 
 N_TRAIN_SAMPLES = int(NSAMPLES * TRAIN_PERCENT)
 N_VAL_SAMPLES = int(NSAMPLES * VAL_PERCENT)
@@ -65,43 +69,57 @@ np.random.shuffle(sigmas)
 strengths = np.reshape(strengths, (NSAMPLES, -1))
 sigmas = np.reshape(sigmas, (NSAMPLES, -1))
 
-NSAMPLES_1 = int(NSAMPLES * 0.75)
-NSAMPLES_2 = NSAMPLES - NSAMPLES_1
+if SAMPLING_TYPE == 'radii':
+    NSAMPLES_1 = int(NSAMPLES * 0.75)
+    NSAMPLES_2 = NSAMPLES - NSAMPLES_1
 
-radii_list = []
-mid_dist = (RADII_RANGE[1] + RADII_RANGE[0]) / 2
-radii_list.append(np.sort(np.random.random_sample(size=(NSAMPLES_1 * (NPARTICLES - 1))) * (mid_dist - RADII_RANGE[0]) + RADII_RANGE[0]))
-radii_list.append(np.sort(np.random.random_sample(size=(NSAMPLES_2 * (NPARTICLES - 1))) * (RADII_RANGE[1] - mid_dist) + mid_dist))
+    radii_list = []
+    mid_dist = (RADII_RANGE[1] + RADII_RANGE[0]) / 2
+    radii_list.append(np.sort(np.random.random_sample(size=(NSAMPLES_1 * (NPARTICLES - 1))) * (mid_dist - RADII_RANGE[0]) + RADII_RANGE[0]))
+    radii_list.append(np.sort(np.random.random_sample(size=(NSAMPLES_2 * (NPARTICLES - 1))) * (RADII_RANGE[1] - mid_dist) + mid_dist))
 
-radiis = np.sort(np.hstack(radii_list))
-angles = np.sort(np.random.random_sample(size=(NSAMPLES * (NPARTICLES - 1))) * 360.0)
+    radiis = np.sort(np.hstack(radii_list))
+    angles = np.sort(np.random.random_sample(size=(NSAMPLES * (NPARTICLES - 1))) * 360.0)
 
-ycoords_ = np.sort(np.random.random_sample(size=(NSAMPLES)) * SAMPLE_RES[0] + OFFSET[0])
-xcoords_ = np.sort(np.random.random_sample(size=(NSAMPLES)) * SAMPLE_RES[1] + OFFSET[1])
+    ycoords_ = np.sort(np.random.random_sample(size=(NSAMPLES)) * SAMPLE_RES[0] + OFFSET[0])
+    xcoords_ = np.sort(np.random.random_sample(size=(NSAMPLES)) * SAMPLE_RES[1] + OFFSET[1])
 
-np.random.shuffle(xcoords_)
-np.random.shuffle(ycoords_)
-np.random.shuffle(radiis)
-np.random.shuffle(angles)
+    np.random.shuffle(xcoords_)
+    np.random.shuffle(ycoords_)
+    np.random.shuffle(radiis)
+    np.random.shuffle(angles)
 
-radiis = np.reshape(radiis, (NSAMPLES, NPARTICLES - 1))
-angles = np.reshape(angles, (NSAMPLES, NPARTICLES - 1))
+    radiis = np.reshape(radiis, (NSAMPLES, NPARTICLES - 1))
+    angles = np.reshape(angles, (NSAMPLES, NPARTICLES - 1))
 
-delta_y = radiis * np.sin(angles * np.pi / 180.0)
-delta_x = radiis * np.cos(angles * np.pi / 180.0)
-ycoords_p = np.reshape(ycoords_, (-1, 1)) + delta_y
-xcoords_p = np.reshape(xcoords_, (-1, 1)) + delta_x
+    delta_y = radiis * np.sin(angles * np.pi / 180.0)
+    delta_x = radiis * np.cos(angles * np.pi / 180.0)
+    ycoords_p = np.reshape(ycoords_, (-1, 1)) + delta_y
+    xcoords_p = np.reshape(xcoords_, (-1, 1)) + delta_x
 
-for i in range(NPARTICLES - 1):
-    out_of_box_y0 = np.where(ycoords_p[:, i] < OFFSET[0])[0]
-    out_of_box_y1 = np.where(ycoords_p[:, i] > (RESOLUTION[0] - OFFSET[0]))[0]
-    out_of_box_x0 = np.where(xcoords_p[:, i] < OFFSET[1])[0]
-    out_of_box_x1 = np.where(xcoords_p[:, i] > (RESOLUTION[1] - OFFSET[1]))[0]
+    for i in range(NPARTICLES - 1):
+        out_of_box_y0 = np.where(ycoords_p[:, i] < OFFSET[0])[0]
+        out_of_box_y1 = np.where(ycoords_p[:, i] > (RESOLUTION[0] - OFFSET[0]))[0]
+        out_of_box_x0 = np.where(xcoords_p[:, i] < OFFSET[1])[0]
+        out_of_box_x1 = np.where(xcoords_p[:, i] > (RESOLUTION[1] - OFFSET[1]))[0]
 
-    ycoords_p[out_of_box_y0, i] = ycoords_p[out_of_box_y0, i] - 2.0 * delta_y[out_of_box_y0, i]
-    ycoords_p[out_of_box_y1, i] = ycoords_p[out_of_box_y1, i] - 2.0 * delta_y[out_of_box_y1, i]
-    xcoords_p[out_of_box_x0, i] = xcoords_p[out_of_box_x0, i] - 2.0 * delta_x[out_of_box_x0, i]
-    xcoords_p[out_of_box_x1, i] = xcoords_p[out_of_box_x1, i] - 2.0 * delta_x[out_of_box_x1, i]
+        ycoords_p[out_of_box_y0, i] = ycoords_p[out_of_box_y0, i] - 2.0 * delta_y[out_of_box_y0, i]
+        ycoords_p[out_of_box_y1, i] = ycoords_p[out_of_box_y1, i] - 2.0 * delta_y[out_of_box_y1, i]
+        xcoords_p[out_of_box_x0, i] = xcoords_p[out_of_box_x0, i] - 2.0 * delta_x[out_of_box_x0, i]
+        xcoords_p[out_of_box_x1, i] = xcoords_p[out_of_box_x1, i] - 2.0 * delta_x[out_of_box_x1, i]
+
+    ycoords = np.hstack([np.reshape(ycoords_, (-1, 1)), ycoords_p])
+    xcoords = np.hstack([np.reshape(xcoords_, (-1, 1)), xcoords_p])
+
+elif SAMPLING_TYPE == 'box':
+
+    ycoords = np.empty((NSAMPLES, NPARTICLES))
+    xcoords = np.empty((NSAMPLES, NPARTICLES))
+
+    for i in range(NSAMPLES):
+        ycoords[i, :] = np.random.random_sample(size=(NPARTICLES)) * SAMPLE_RES[0] + OFFSET[0]
+        xcoords[i, :] = np.random.random_sample(size=(NPARTICLES)) * SAMPLE_RES[1] + OFFSET[1]
+
 
 # delta_y1 = ycoords_ - ycoords_p[:, 0]
 # delta_x1 = xcoords_ - xcoords_p[:, 0]
@@ -114,8 +132,7 @@ for i in range(NPARTICLES - 1):
 # delta_x2 = xcoords_p[:,1] - xcoords_p[:, 0]
 # dist2 = (delta_y2**2 + delta_x2**2)**0.5
 #
-ycoords = np.hstack([np.reshape(ycoords_, (-1, 1)), ycoords_p])
-xcoords = np.hstack([np.reshape(xcoords_, (-1, 1)), xcoords_p])
+
 
 # plt.figure()
 # plt.xlim([0, RESOLUTION[1]])
@@ -175,6 +192,7 @@ for id in range(N_TRAIN_SAMPLES):
     sigma = np.reshape(train_sigmas[id], (1, NPARTICLES, 1)).astype(np.float32)
     velocities = sess.run(velocities_tf, feed_dict={location_pl: location, strength_pl: strength, sigma_pl: sigma})
 
+
 # max_x = np.abs(velocities[0].x.data[0, :, :, 0]).max()
 # min_x = -max_x
 #
@@ -232,3 +250,4 @@ for id in range(N_TEST_SAMPLES):
 
     for frame in range(NUM_TIME_STEPS + 1):
         np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
+#

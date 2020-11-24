@@ -16,7 +16,7 @@ import json
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train for')
+parser.add_argument('--epochs', type=int, default=50, help='number of epochs to train for')
 parser.add_argument('--data_dir', type=str, default='/home/vemburaj/data'
                                                     '/single_vortex_dataset_256x256_16000',
                     help='path to save training summaries and checkpoints')
@@ -24,15 +24,15 @@ parser.add_argument('--num_time_steps', type=int, default=2, help='train the net
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for training')
-parser.add_argument('--lr', type=float, default=1e-2, help='Base learning rate')
-parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='T2_exp_weight_1.0_depth_10_100_batch_32_c8_d_lr_1e-2_l2_1e-5_r256_16000', help='name of the experiment')
+parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
+parser.add_argument('--l2', type=float, default=1e-4, help='weight for l2 regularization')
+parser.add_argument('--ex', type=str, default='T2_exp_red(5)_weight_1.0_depth_2_100_batch_32_lr_1e-3_l2_1e-4_r256_16000', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
-parser.add_argument('--depth', type=int, default=10, help='number of hidden layers')
+parser.add_argument('--depth', type=int, default=2, help='number of hidden layers')
 parser.add_argument('--loss_scaling', type=float, default=1.0, help='scaling of loss for training to predict to more than one time stepo')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--distinct_nets', type=bool, default=False, help='True for two networks for multi step training and False for single network')
-parser.add_argument('--kernel', type=str, default='ExpGaussian', help='kernel representing vorticity strength filed. options:'
+parser.add_argument('--kernel', type=str, default='ExpGaussianRed', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
 # MEAN = [64.0, 0.0, 27.5]
@@ -53,7 +53,7 @@ BATCH_SIZE = opt.batch_size
 weights = [0.0] + [opt.loss_scaling**i for i in range(NUM_TIME_STEPS)]
 
 delta_t = torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0')
-
+num_time_steps = torch.tensor(NUM_TIME_STEPS, dtype=torch.float32, device='cuda:0')
 loss_weights = torch.tensor(weights, dtype=torch.float32, device=('cuda:0'))
 print(loss_weights)
 data_dir = opt.data_dir
@@ -123,12 +123,13 @@ optimizer = Adam(params=VortexNet.parameters(), lr=opt.lr, weight_decay=opt.l2)
 if opt.ex == opt.load_weights_ex:
     optimizer.load_state_dict(torch.load(init_weights_ckpt_file)['optimizer_state_dict'])
     start_epoch = torch.load(init_weights_ckpt_file)['epoch']
+    val_best = torch.load(init_weights_ckpt_file)['val_loss'].item()
 
-lambda1 = lambda epoch: 0.9 ** epoch
+lambda1 = lambda epoch: 0.95 ** epoch
 scheduler = LambdaLR(optimizer, lambda1)
 # scheduler = MultiStepLR(optimizer, milestones=[1, 30], gamma=0.1)
 # scheduler = StepLR(optimizer, 100, gamma=0.1)
-# scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=2)
+# scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=10)
 
 train_summary = SummaryWriter(log_dir=train_summaries_dir)
 val_summary = SummaryWriter(log_dir=val_summaries_dir)
@@ -176,6 +177,9 @@ while(epoch < opt.epochs):
             c = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
             d = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0') + 0.001
             inp_vector = torch.stack([y, x, tau, sig, c, d], dim=-1)
+        elif opt.kernel == 'ExpGaussianRed':
+            d = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
+            inp_vector = torch.stack([y, x, tau, sig, d], dim=-1)
 
         vortex_features = VortexNet(inp_vector)
         mse_loss_list, max_loss_list = train_loss_module(vortex_features, velocities)
@@ -220,6 +224,9 @@ while(epoch < opt.epochs):
                 c = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
                 d = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0') + 0.001
                 inp_vector = torch.stack([y, x, tau, sig, c, d], dim=-1)
+            elif opt.kernel == 'ExpGaussianRed':
+                d = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
+                inp_vector = torch.stack([y, x, tau, sig, d], dim=-1)
 
             vortex_features = VortexNet(inp_vector)
             mse_loss_list, max_loss_list = val_loss_module(vortex_features, velocities)
@@ -233,8 +240,8 @@ while(epoch < opt.epochs):
         #     optimizer.param_groups[0]['lr'] = get_lr / 10.0
         # if epoch > 0:
         #     if val_loss.item() > val_best:
-        #         if patience_count == 5:
-        #             init_weights_log_dir = os.path.join('../logs', opt.ex)
+        #         if patience_count >= 5:
+        #             init_weights_log_dir = os.path.join('../logs_1', opt.ex)
         #             init_weights_ckpt_dir = os.path.join(init_weights_log_dir, 'ckpt')
         #
         #             checkpoints_files = os.listdir(os.path.join(init_weights_ckpt_dir))
@@ -246,12 +253,7 @@ while(epoch < opt.epochs):
         #             optimizer.load_state_dict(torch.load(init_weights_ckpt_file)['optimizer_state_dict'])
         #             epoch = torch.load(init_weights_ckpt_file)['epoch']
         #
-        #             get_lr = optimizer.param_groups[0]['lr']
-        #             if get_lr <= 1e-3:
-        #                 factor = 2.0
-        #             else:
-        #                 factor = 10.0
-        #             optimizer.param_groups[0]['lr'] = get_lr / factor
+        #             optimizer.param_groups[0]['lr'] /= 5.0
         #             patience_count = 0
         #         else:
         #             patience_count += 1
