@@ -2,7 +2,7 @@ import cv2
 import glob
 import os
 
-save_dir = os.path.join('../p1_samples/case_5')
+save_dir = os.path.join('../p10_samples/case_8')
 
 video_name = os.path.join(save_dir, 'video.avi')
 

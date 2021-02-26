@@ -8,7 +8,7 @@ import json
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--offset', type=list, default=[40, 40], help='neglect regions near boundaries of the '
+parser.add_argument('--offset', type=list, default=[20, 20], help='neglect regions near boundaries of the '
                                                                   'domain (as list: [24, 24])')
 parser.add_argument('--n_samples', type=int, default=4000, help='number of samples to be generated')
 parser.add_argument('--n_particles', type=int, default=10, help='number of vortex particles')
@@ -25,7 +25,7 @@ parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage 
 parser.add_argument('--num_time_steps', type=int, default=10, help='number of time steps to adfvance the simulation '
                                                                    'for each sample')
 parser.add_argument('--save_dir', type=str, default='/home/vemburaj/'
-                                                    'data/p10_gaussian_dataset_120x120_4000',
+                                                    'data/p10_b_sb_gaussian_dataset_120x120_4000',
                     help='diretory to save the generated dataset')
 
 opt = parser.parse_args()
@@ -54,9 +54,11 @@ DIRECTORY = opt.save_dir
 
 def gaussian_falloff(distance, sigma):
     sq_distance = math.sum(distance ** 2, axis=-1, keepdims=True)
+    falloff_1 = (math.exp(- sq_distance / sigma ** 2)) / math.sqrt(sq_distance)
     falloff_2 = (1.0 - math.exp(- sq_distance / sigma ** 2)) / (2.0 * np.pi * sq_distance)
 
     return falloff_2
+
 
 sigmas = np.reshape(np.random.random_sample(size=(NPARTICLES * NSAMPLES)) * (SIGMA_RANGE[1] - SIGMA_RANGE[0]) + SIGMA_RANGE[0], (1, -1, 1))
 facs = np.random.random_sample(size=(NPARTICLES * NSAMPLES)) * 15 + 5
@@ -166,7 +168,7 @@ test_ycoords, test_xcoords = ycoords[-N_TEST_SAMPLES:, :], xcoords[-N_TEST_SAMPL
 test_strengths, test_sigmas = strengths[-N_TEST_SAMPLES:, :], sigmas[-N_TEST_SAMPLES:, :]
 
 
-domain = Domain(RESOLUTION, boundaries=OPEN)
+domain = Domain(RESOLUTION, boundaries=CLOSED)
 FLOW_REF = Fluid(domain)
 
 location_pl = tf.placeholder(shape=(1, NPARTICLES, 2), dtype=tf.float32)
@@ -178,16 +180,22 @@ vorticity = AngularVelocity(location=location_pl,
                             falloff=partial(gaussian_falloff, sigma=sigma_pl))
 
 velocity_0 = vorticity.at(FLOW_REF.velocity)
-velocities_tf = [velocity_0]
+velocity_0_div_free = divergence_free(velocity_0, domain=domain)
+# velocity_0_div = divergence_free(velocity_0)
+# velocities_tf = [velocity_0]
 
+velocities_tf = [velocity_0]
 FLOW = Fluid(domain=domain, velocity=velocity_0)
-fluid = world.add(Fluid(domain=domain, velocity=velocity_0), physics=IncompressibleFlow())
+fluid = world.add(Fluid(domain=domain, velocity=velocity_0_div_free), physics=IncompressibleFlow())
 
 for step in range(NUM_TIME_STEPS):
     world.step(dt=0.2)
     velocities_tf.append(fluid.velocity)
 
+velocities_tf.append(velocity_0_div_free)
+
 velocity_filenames = ['velocity_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS + 1)]
+velocity_filenames.append('velocity_div_000000.npz')
 sess = Session(None)
 
 train_dir = os.path.join(DIRECTORY, 'train')
@@ -214,23 +222,49 @@ for id in range(N_TRAIN_SAMPLES):
 #
 # plt.figure()
 # plt.subplot(1, 2, 1)
-# plt.imshow(velocities[0].x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
+# plt.imshow(velocities[-1].x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
 # plt.subplot(1, 2, 2)
-# plt.imshow(velocities[1].x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
+# plt.imshow(velocities[0].x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
 # plt.show()
 #
 # plt.figure()
 # plt.subplot(1, 2, 1)
-# plt.imshow(velocities[0].y.data[0, :, :, 0], cmap='RdYlBu', vmin=min_y, vmax=max_y)
+# plt.imshow(velocities[-1].y.data[0, :, :, 0], cmap='RdYlBu', vmin=min_y, vmax=max_y)
 # plt.subplot(1, 2, 2)
-# plt.imshow(velocities[1].y.data[0, :, :, 0], cmap='RdYlBu', vmin=min_y, vmax=max_y)
+# plt.imshow(velocities[0].y.data[0, :, :, 0], cmap='RdYlBu', vmin=min_y, vmax=max_y)
 # plt.show()
+#
+# corr = velocities[-1] - velocities[0]
+# plt.figure()
+# plt.subplot(1, 2, 1)
+# plt.imshow(corr.x.data[0, :, :, 0], cmap='RdYlBu')
+# plt.subplot(1, 2, 2)
+# plt.imshow(corr.y.data[0, :, :, 0], cmap='RdYlBu')
+# plt.show()
+
+# plt.figure(figsize=(20, 10))
+# plt.subplot(1, 4, 1)
+# plt.imshow(velocities[0].x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
+# plt.title('Velocity Field form Vortex Particles (T0)')
+# plt.subplot(1, 4, 2)
+# plt.imshow(velocities[-1].x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
+# plt.title('Velocity Field After Pressure Solve (T0)')
+# plt.subplot(1, 4, 3)
+# plt.imshow(corr.x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
+# plt.title('Correction Field (T0)')
+# plt.subplot(1, 4, 4)
+# plt.imshow(velocities[1].x.data[0, :, :, 0], cmap='RdYlBu', vmin=min_x, vmax=max_x)
+# plt.title('Velocity Field (T1)')
+# plt.show()
+
+
     np.savez_compressed(os.path.join(SCENE.path, 'location_000000.npz'), location)
     np.savez_compressed(os.path.join(SCENE.path, 'strength_000000.npz'), strength)
     np.savez_compressed(os.path.join(SCENE.path, 'sigma_000000.npz'), sigma)
 
     for frame in range(NUM_TIME_STEPS + 1):
         np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
+    np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[-1]), velocities[-1].staggered_tensor())
 
 val_dir = os.path.join(DIRECTORY, 'val')
 
@@ -247,6 +281,7 @@ for id in range(N_VAL_SAMPLES):
 
     for frame in range(NUM_TIME_STEPS + 1):
         np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
+    np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[-1]), velocities[-1].staggered_tensor())
 
 test_dir = os.path.join(DIRECTORY, 'test')
 
@@ -263,4 +298,4 @@ for id in range(N_TEST_SAMPLES):
 
     for frame in range(NUM_TIME_STEPS + 1):
         np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[frame]), velocities[frame].staggered_tensor())
-#
+    np.savez_compressed(os.path.join(SCENE.path, velocity_filenames[-1]), velocities[-1].staggered_tensor())

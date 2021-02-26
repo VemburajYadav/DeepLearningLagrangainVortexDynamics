@@ -5,13 +5,13 @@ import os
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--offset', type=list, default=[60, 60], help='neglect regions near boundaries of the '
+parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
+parser.add_argument('--offset', type=list, default=[40, 40], help='neglect regions near boundaries of the '
                                                                   'domain (as list: [24, 24])')
-parser.add_argument('--n_samples', type=int, default=16000, help='number of samples to be generated')
+parser.add_argument('--n_samples', type=int, default=8000, help='number of samples to be generated')
 parser.add_argument('--strength_range', type=list, default=[-2, 2], help='range for strength sampling')
 parser.add_argument('--strength_threshold', type=float, default=1.0, help='minimum value of magnitude of strength')
-parser.add_argument('--sigma_range', type=list, default=[5.0, 25.0], help='range for core ize sampling')
+parser.add_argument('--sigma_range', type=list, default=[2.0, 10.0], help='range for core ize sampling')
 parser.add_argument('--train_percent', type=float, default=0.6, help='percentage of data sampled from each zone for '
                                                                      'training')
 parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage of data sampled from each zone for '
@@ -44,7 +44,9 @@ DIRECTORY = opt.save_dir
 
 def gaussian_falloff(distance, sigma):
     sq_distance = math.sum(distance ** 2, axis=-1, keepdims=True)
-    return (math.exp(- sq_distance / sigma ** 2)) / math.sqrt(sq_distance)
+    falloff_2 = (1.0 - math.exp(- sq_distance / sigma ** 2)) / (2.0 * np.pi * sq_distance)
+
+    return falloff_2
 
 
 ycoords = np.sort(np.random.random_sample(size=NSAMPLES) * SAMPLE_RES[0] + OFFSET[0])

@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam, SGD
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, LambdaLR
 from torch.utils.tensorboard import SummaryWriter
-from core.datasets import MultiVortexDataset
+from core.datasets import ViscousVortexDataset
 from core.custom_functions import *
 import argparse
 import matplotlib.pyplot as plt
@@ -17,19 +17,18 @@ import json
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--epochs', type=int, default=250, help='number of epochs to train for')
-parser.add_argument('--data_dir', type=str, default='/media/vemburaj/9d072277-d226-41f6-a38d-1db833dca2bd/Datasets_LVD/'
-                                                    'data/p10_gaussian_dataset_120x120_4000',
+parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
+parser.add_argument('--data_dir', type=str, default='/home/vemburaj/'
+                                                    'data/p100_gaussian_dataset_viscous_120x120_4000',
                     help='path to save training summaries and checkpoints')
 parser.add_argument('--num_time_steps', type=int, default=1, help='train the network on loss for more than 1 time step')
-parser.add_argument('--stride', type=int, default=5, help='skip intermediate time frames corresponding to stride during training f'
+parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for training')
-parser.add_argument('--lr', type=float, default=0.0, help='Base learning rate')
+parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='T1_1l1_p10_exp_tau_all_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_4000_2', help='name of the experiment')
-parser.add_argument('--load_weights_ex', type=str,
-                    default='T1_l1_p10_exp_tau_all_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_4000_2', help='name of the experiment')
+parser.add_argument('--ex', type=str, default='T1_exp_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_4000_2', help='name of the experiment')
+parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--order', type=int, default=2, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
@@ -62,10 +61,10 @@ print(loss_weights)
 data_dir = opt.data_dir
 
 train_dir = os.path.join(data_dir, 'train')
-val_dir = os.path.join(data_dir, 'train')
+val_dir = os.path.join(data_dir, 'val')
 test_dir = os.path.join(data_dir, 'test')
 
-logs_dir = os.path.join('../logs_p10_gauss_inviscid', opt.ex)
+logs_dir = os.path.join('../logs_p10_gauss_viscous', opt.ex)
 ckpt_save_dir = os.path.join(logs_dir, 'ckpt')
 train_summaries_dir = os.path.join(logs_dir, 'train_summary')
 val_summaries_dir = os.path.join(logs_dir, 'val_summary')
@@ -77,8 +76,8 @@ for dir in [ckpt_save_dir, train_summaries_dir, val_summaries_dir]:
 with open(os.path.join(logs_dir, 'train_config'), 'w') as configfile:
     json.dump(vars(opt), configfile, indent=2)
 
-train_dataset = MultiVortexDataset(train_dir, num_steps=NUM_TIME_STEPS, stride=STRIDE)
-val_dataset = MultiVortexDataset(val_dir, num_steps=NUM_TIME_STEPS, stride=STRIDE)
+train_dataset = ViscousVortexDataset(train_dir, num_steps=NUM_TIME_STEPS, stride=STRIDE)
+val_dataset = ViscousVortexDataset(val_dir, num_steps=NUM_TIME_STEPS, stride=STRIDE)
 
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, drop_last=True, shuffle=True,
                                    pin_memory=True, num_workers=4)
@@ -93,6 +92,7 @@ batch_data_dict = next(train_dataiter)
 location = batch_data_dict['location'].to('cuda:0')
 strength = batch_data_dict['strength'].to('cuda:0')
 sigma = batch_data_dict['sigma'].to('cuda:0')
+viscosity = batch_data_dict['viscosity'].to('cuda:0')
 velocities = [batch_data_dict['velocities'][i].to('cuda:0') for i in range(NUM_TIME_STEPS + 1)]
 
 nparticles = location.shape[1]
@@ -122,15 +122,16 @@ def init_weights(m):
         torch.nn.init.kaiming_uniform_(m.weight.data, mode='fan_in', a=0.1)
         torch.nn.init.zeros_(m.bias.data)
 
-VortexNet = MultiStepMultiVortexNetwork(depth=opt.depth, hidden_units=opt.hidden_units, batch_norm=True,
+VortexNet = MultiStepViscousVortexNetwork(depth=opt.depth, hidden_units=opt.hidden_units, batch_norm=True,
                                         kernel=opt.kernel, norm_mean=MEAN, norm_stddev=STDDEV, order=opt.order,
                                         num_steps=opt.num_time_steps, distinct_nets=opt.distinct_nets)
-# VortexNet = MultiStepInteractionNetwork(depth=opt.depth, hidden_units=opt.hidden_units, batch_norm=True,
-#                                        kernel=opt.kernel, norm_mean=MEAN, norm_stddev=STDDEV)
-
-
+# VortexNet = MultiStepViscousInteractionNetwork(depth=opt.depth, hidden_units=opt.hidden_units, batch_norm=True,
+#                                                kernel=opt.kernel, norm_mean=MEAN, norm_stddev=STDDEV,
+#                                                num_steps=opt.num_time_steps, distinct_nets=opt.distinct_nets)
+#
+#
 if opt.load_weights_ex is not None:
-    init_weights_log_dir = os.path.join('../logs_p10_gauss_inviscid', opt.load_weights_ex)
+    init_weights_log_dir = os.path.join('../logs', opt.load_weights_ex)
     init_weights_ckpt_dir = os.path.join(init_weights_log_dir, 'ckpt')
 
     checkpoints_files = os.listdir(os.path.join(init_weights_ckpt_dir))
@@ -154,7 +155,7 @@ if opt.ex == opt.load_weights_ex:
     optimizer.load_state_dict(torch.load(init_weights_ckpt_file)['optimizer_state_dict'])
     start_epoch = torch.load(init_weights_ckpt_file)['epoch']
 
-# lambda1 = lambda epoch: 0.9 ** epoch
+# lambda1 = lambda epoch: 0.95 ** epoch
 # scheduler = LambdaLR(optimizer, lambda1)
 scheduler = StepLR(optimizer, 150, gamma=0.1)
 # scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=25)
@@ -167,22 +168,21 @@ train_loss_module = MultiStepLoss(kernel=opt.kernel, resolution=opt.domain,
 val_loss_module = MultiStepLoss(kernel=opt.kernel, resolution=opt.domain,
                                 num_steps=opt.num_time_steps, batch_size=opt.batch_size, dt=delta_t)
 
-# for epoch in range(start_epoch, opt.epochs):
-for epoch in range(1):
+for epoch in range(start_epoch, opt.epochs):
 
     train_dataiter = iter(train_dataloader)
     VortexNet.train()
 
     print('============================== Starting Epoch; {}/{} ========================================='.format(epoch+1, opt.epochs))
     print('Learning Rate: {:.4f}'.format(optimizer.param_groups[0]['lr']))
-    # for step in range(steps_per_epoch):
-    for step in range(1):
+    for step in range(steps_per_epoch):
 
         batch_data_dict = next(train_dataiter)
 
         location = batch_data_dict['location'].to('cuda:0')
         strength = batch_data_dict['strength'].to('cuda:0')
         sigma = batch_data_dict['sigma'].to('cuda:0')
+        viscosity = batch_data_dict['viscosity'].to('cuda:0')
         velocities = [batch_data_dict['velocities'][i].to('cuda:0') for i in range(NUM_TIME_STEPS + 1)]
 
         nparticles = location.shape[1]
@@ -211,7 +211,7 @@ for epoch in range(1):
         elif opt.kernel == 'GaussianVorticity':
             inp_vector = torch.stack([y, x, tau, sig], dim=-1)
 
-        vortex_features = VortexNet(inp_vector)
+        vortex_features = VortexNet(inp_vector, viscosity)
         mse_loss_list, max_loss_list = train_loss_module(vortex_features, velocities)
         mse_loss_tensor = torch.stack(mse_loss_list, dim=0)
         loss = torch.sum(mse_loss_tensor)
@@ -236,6 +236,7 @@ for epoch in range(1):
         location = val_batch['location'].to('cuda:0')
         strength = val_batch['strength'].to('cuda:0')
         sigma = val_batch['sigma'].to('cuda:0')
+        viscosity = batch_data_dict['viscosity'].to('cuda:0')
         velocities = [val_batch['velocities'][i].to('cuda:0') for i in range(NUM_TIME_STEPS + 1)]
 
         v = torch.zeros(BATCH_SIZE, dtype=torch.float32, device='cuda:0')
@@ -264,8 +265,7 @@ for epoch in range(1):
             inp_vector = torch.stack([y, x, tau, sig, d], dim=-1)
         elif opt.kernel == 'GaussianVorticity':
             inp_vector = torch.stack([y, x, tau, sig], dim=-1)
-
-        vortex_features = VortexNet(inp_vector)
+        vortex_features = VortexNet(inp_vector, viscosity)
 
         with torch.no_grad():
             mse_loss_list, max_loss_list = val_loss_module(vortex_features, velocities)

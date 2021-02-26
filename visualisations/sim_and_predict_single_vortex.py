@@ -17,23 +17,23 @@ import cv2
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--case_path', type=str, default='/media/vemburaj/9d072277-d226-41f6-a38d-1db833dca2bd/'
-                                                     'data/p2_r_dataset_256x256_32000/train/sim_007246',
+parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
+parser.add_argument('--case_path', type=str, default='/home/vemburaj/'
+                                                    'data/p10_gaussian_dataset_viscous_120x120_4000',
                     help='path to the directory with data to make predictions')
-parser.add_argument('--load_weights_ex', type=str, default='T2_exp_red(5)_weight_1.0_depth_2_100_batch_32_lr_1e-3_l2_1e-4_r256_16000', help='name of the experiment to load weights from')
-parser.add_argument('--depth', type=int, default=2, help='number of hidden layers')
+parser.add_argument('--load_weights_ex', type=str, default='T1_exp_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_4000', help='name of the experiment to load weights from')
+parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--distinct_nets', type=bool, default=False, help='True for two networks for multi step training and False for single network')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
-parser.add_argument('--num_time_steps', type=int, default=50, help='number of time steps to make predictions for')
-parser.add_argument('--kernel', type=str, default='ExpGaussianRed', help='kernel representing vorticity strength filed. options:'
+parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to make predictions for')
+parser.add_argument('--kernel', type=str, default='GaussianVorticity', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
 # cuda.select_device(0)
 
-save_dir = os.path.join('../p1_samples/case_1')
+save_dir = os.path.join('../p1_samples_report/case_1')
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
@@ -51,17 +51,22 @@ NUM_TIME_STEPS = opt.num_time_steps
 # strength = np.load(os.path.join(case_dir, 'strength_000000.npz'))['arr_0']
 # sigma = np.load(os.path.join(case_dir, 'sigma_000000.npz'))['arr_0']
 
-loc = [120.7, 145.2]
+loc = [60.0, 60.0]
 location = np.array(loc).reshape((1, 1, 2))
 
-strength = np.array([1.9])
+strength = np.array([60.0])
 sigma = np.array([6.0]).reshape((1, 1, 1))
+
+viscosity = np.array([2.0])
 
 NPARTICLES = location.shape[1]
 
 def gaussian_falloff(distance, sigma):
     sq_distance = math.sum(distance ** 2, axis=-1, keepdims=True)
-    return (math.exp(- sq_distance / sigma ** 2)) / math.sqrt(sq_distance)
+    falloff_1 = (math.exp(- sq_distance / sigma ** 2)) / math.sqrt(sq_distance)
+    falloff_2 = (1.0 - math.exp(- sq_distance / sigma ** 2)) / (2.0 * np.pi * sq_distance)
+
+    return falloff_2
 
 domain = Domain(RESOLUTION, boundaries=OPEN)
 FLOW_REF = Fluid(domain)
@@ -78,11 +83,13 @@ velocity_0 = vorticity.at(FLOW_REF.velocity)
 velocities_ = [velocity_0]
 
 FLOW = Fluid(domain=domain, velocity=velocity_0)
-fluid = world.add(Fluid(domain=domain, velocity=velocity_0), physics=IncompressibleFlow())
+fluid = world.add(Fluid(domain=domain, velocity=velocity_0), physics=[IncompressibleFlow(),
+                           lambda fluid_1, dt: fluid_1.copied_with(velocity=diffuse(fluid_1.velocity, viscosity[0] * dt, substeps=5))])
 
-for step in range(NUM_TIME_STEPS):
-    world.step()
-    velocities_.append(fluid.velocity)
+for step in range(NUM_TIME_STEPS * 2):
+    world.step(dt=0.5)
+    if step % 2 == 1:
+        velocities_.append(fluid.velocity)
 
 # sess = Session(None)
 # velocities_ = sess.run(velocities_tf, feed_dict={location_pl: location, strength_pl: strength, sigma_pl: sigma})
@@ -129,7 +136,7 @@ cat_x = torch.zeros((1, 1, opt.domain[0] + 1), dtype=torch.float32, device='cuda
 v0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
 u0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
 
-logs_dir = os.path.join('../logs', opt.load_weights_ex)
+logs_dir = os.path.join('../logs_p1_viscous', opt.load_weights_ex)
 ckpt_dir = os.path.join(logs_dir, 'ckpt')
 
 checkpoints_files = os.listdir(os.path.join(ckpt_dir))
@@ -167,13 +174,17 @@ if opt.kernel == 'ExpGaussianRed':
 elif opt.kernel == 'gaussian':
     inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1)], dim=-1).view(-1, 1, 4)
     falloff_kernel = GaussianFalloffKernel()
+elif opt.kernel == 'GaussianVorticity':
+    inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1)], dim=-1).view(-1, 1, 4)
+    visc_gpu = torch.tensor(viscosity, dtype=torch.float32, device='cuda:0')
+    falloff_kernel = GaussianFalloffKernelVelocity()
 
 pred_velocites = []
 losses= []
 
 with torch.no_grad():
 
-    vortex_features = VortexNet(inp_feature)
+    vortex_features = VortexNet(inp_feature, visc_gpu)
 
     for step in range(NUM_TIME_STEPS + 1):
 
@@ -198,9 +209,6 @@ for step in range(NUM_TIME_STEPS + 1):
     total_velocities_pred.append(torch.sqrt(torch.sum(pred_velocites[step]**2, dim=-1)))
     total_velocities.append(torch.sqrt(torch.sum(velocities_gpu[step]**2, dim=-1)))
     error_map.append(torch.abs((total_velocities[step] - total_velocities_pred[step])))
-
-# cycle = pylab.rcParams['axes.prop_cycle'].by_key()['color']
-# pylab.plot(velocities[0][0, :, :, 1], color=cycle[0])
 
 min_val = total_velocities[0].min()
 max_val = total_velocities[0].max()
@@ -237,7 +245,7 @@ for step in range(NUM_TIME_STEPS + 1):
 
 plt.figure(figsize=(16, 10))
 legend_list = []
-for i in range(6):
+for i in range(2):
     plt.plot(math.abs(velocities[i][0, loc_y - 20:loc_y + 20, loc_x, 1]))
     legend_list.append('True: {}'.format(i * opt.stride))
     if i > 0:
@@ -248,4 +256,3 @@ plt.title("Variation of velocity-x along y-axis \n 'Strength: {:.2f}, "
           "Stddev: {:.2f}".format(strength[0], sigma[0, 0, 0]))
 plt.savefig(os.path.join(save_dir, 'velocity-profile-y.png'))
 plt.show()
-#

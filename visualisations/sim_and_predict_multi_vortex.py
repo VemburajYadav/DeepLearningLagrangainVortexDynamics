@@ -18,8 +18,8 @@ import cv2
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[200, 200], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--case_path', type=str, default='/home/vemburaj/'
-                                                     'data/p10_b_dataset_200x200_16000/train/sim_007217',
+parser.add_argument('--case_path', type=str, default='/media/vemburaj/9d072277-d226-41f6-a38d-1db833dca2bd/'
+                                                     'data/p10_b_dataset_200x200_16000/train/sim_001476',
                     help='path to the directory with data to make predictions')
 parser.add_argument('--load_weights_ex', type=str, default='p10_b_T2_exp_red(6)_weight_1.0_depth_10_100_batch_32_lr_5e-3_l2_1e-4_r256_16000_2', help='name of the experiment to load weights from')
 parser.add_argument('--depth', type=int, default=10, help='number of hidden layers')
@@ -34,7 +34,7 @@ parser.add_argument('--kernel', type=str, default='ExpGaussianRed', help='kernel
 
 # cuda.select_device(0)
 
-save_dir = os.path.join('../p10_samples/case_7')
+save_dir = os.path.join('../p10_samples/case_8')
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)

@@ -6,21 +6,22 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 import matplotlib.animation as animation
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from core.networks import *
 from core.custom_functions import *
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[256, 256], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--case_path', type=str, default='/home/vemburaj/data/single_vortex_dataset_256x256_16000/train/sim_006612',
+parser.add_argument('--case_path', type=str, default='/home/vemburaj/data/single_vortex_dataset_256x256_16000/train/sim_006632',
                     help='path to the directory with data to make predictions')
-parser.add_argument('--load_weights_ex', type=str, default='T2_exp_red(5)_weight_1.0_depth_2_100_batch_32_lr_1e-3_l2_1e-4_r256_16000', help='name of the experiment to load weights from')
+parser.add_argument('--load_weights_ex', type=str, default='T2_exp(3)_weight_1.0_depth_2_100_batch_32_lr_5e-3_l2_1e-4_r256_16000', help='name of the experiment to load weights from')
 parser.add_argument('--depth', type=int, default=2, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--distinct_nets', type=bool, default=False, help='True for two networks for multi step training and False for single network')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
-parser.add_argument('--num_time_steps', type=int, default=10, help='number of time steps to make predictions for')
+parser.add_argument('--num_time_steps', type=int, default=5, help='number of time steps to make predictions for')
 parser.add_argument('--kernel', type=str, default='ExpGaussianRed', help='kernel representing vorticity strength filed. options:'
                                                                    ' "guassian" or "offset-gaussian" ')
 
@@ -97,8 +98,8 @@ if opt.kernel == 'offset-gaussian':
     falloff_kernel = OffsetGaussianFalloffKernel()
 if opt.kernel == 'ExpGaussian':
     c0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
-    d0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0') + 0.001
-    inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1), c0, d0], dim=-1).view(-1, 1, 6)
+    d0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
+    inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1), c0, d0], dim=-1).view(-1, 1, 5)
     falloff_kernel = GaussExpFalloffKernel(dt=torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0'))
 if opt.kernel == 'ExpGaussianRed':
     d0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
@@ -131,11 +132,60 @@ features = torch.stack(vortex_features, dim=-1)
 plt.figure()
 legend_list = []
 for i in range(opt.num_time_steps + 1):
-    plt.plot(math.abs(velocities[i][0, loc_y-20:loc_y+20, loc_x, 1]))
+    plt.plot(velocities[i][0, loc_y-20:loc_y+20, loc_x, 1])
     legend_list.append('True: {}'.format(i*opt.stride))
     if i > 0:
-        plt.plot(math.abs(pred_velocites[i].cpu().numpy()[0, loc_y-20:loc_y+20, loc_x, 1]), '--')
+        plt.plot(pred_velocites[i].cpu().numpy()[0, loc_y-20:loc_y+20, loc_x, 1], '--')
         legend_list.append('Pred: {}'.format(i*opt.stride))
 plt.legend(legend_list)
-plt.title(opt.kernel + ':-  '+ 'Strength: {:.2f}, Stddev: {:.2f}, Loss: {:.2f}'.format(strength[0, 0], sigma[0, 0, 0], loss_all.sum().item()))
+plt.title('Strength: {:.2f}, Stddev: {:.2f}, Loss: {:.2f}'.format(strength[0, 0], sigma[0, 0, 0], loss_all.sum().item()))
+plt.show()
+
+max_val = np.abs(velocities[0][0, :, :, 1]).max()
+min_val = -max_val
+
+plt.figure()
+plt.subplot(1, 3, 1)
+plt.imshow(velocities[0][0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.subplot(1, 3, 2)
+plt.imshow(velocities[1][0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.subplot(1, 3, 3)
+plt.imshow(pred_velocites[1].cpu().numpy()[0, :, :, 1], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.show()
+
+plt.figure()
+plt.subplot(1, 3, 1)
+plt.imshow(velocities[0][0, :, :, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.subplot(1, 3, 2)
+plt.imshow(velocities[1][0, :, :, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.subplot(1, 3, 3)
+plt.imshow(pred_velocites[1].cpu().numpy()[0, :, :, 0], cmap='RdYlBu', vmin=min_val, vmax=max_val)
+plt.show()
+
+fig, axs = plt.subplots(1, 3)
+
+ax = axs[0]
+pcm = ax.imshow(velocities[0][0, :, :, 1],  cmap='RdYlBu',vmin=min_val, vmax=max_val)
+ax.set_title('Time Step: 0')
+divider = make_axes_locatable(ax)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+fig.colorbar(pcm, cax=cax)
+
+ax = axs[1]
+pcm = ax.imshow(velocities[1][0, :, :, 1],  cmap='RdYlBu',vmin=min_val, vmax=max_val)
+ax.set_title('Time Step: 1')
+divider = make_axes_locatable(ax)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+fig.colorbar(pcm, cax=cax)
+
+ax = axs[2]
+pcm = ax.imshow(velocities[2][0, :, :, 1],  cmap='RdYlBu',vmin=min_val, vmax=max_val)
+ax.set_title('Time Step: 2')
+divider = make_axes_locatable(ax)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+fig.colorbar(pcm, cax=cax)
+
+fig.suptitle(' Velocity-x \n Strength: {:.2f} \n Core Size:'
+             ' {:.2f}'.format(strength[0, 0], sigma[0, 0, 0]))
+
 plt.show()

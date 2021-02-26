@@ -20,13 +20,13 @@ parser.add_argument('--epochs', type=int, default=50, help='number of epochs to 
 parser.add_argument('--data_dir', type=str, default='/home/vemburaj/data'
                                                     '/single_vortex_dataset_256x256_16000',
                     help='path to save training summaries and checkpoints')
-parser.add_argument('--num_time_steps', type=int, default=2, help='train the network on loss for more than 1 time step')
+parser.add_argument('--num_time_steps', type=int, default=5, help='train the network on loss for more than 1 time step')
 parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride during training f'
                                                           'or multiple time steps')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for training')
-parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
+parser.add_argument('--lr', type=float, default=5e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-4, help='weight for l2 regularization')
-parser.add_argument('--ex', type=str, default='T2_exp_red(5)_weight_1.0_depth_2_100_batch_32_lr_1e-3_l2_1e-4_r256_16000', help='name of the experiment')
+parser.add_argument('--ex', type=str, default='T2_exp(3)_weight_1.0_depth_2_100_batch_32_lr_5e-3_l2_1e-4_r256_16000', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
 parser.add_argument('--depth', type=int, default=2, help='number of hidden layers')
 parser.add_argument('--loss_scaling', type=float, default=1.0, help='scaling of loss for training to predict to more than one time stepo')
@@ -125,7 +125,7 @@ if opt.ex == opt.load_weights_ex:
     start_epoch = torch.load(init_weights_ckpt_file)['epoch']
     val_best = torch.load(init_weights_ckpt_file)['val_loss'].item()
 
-lambda1 = lambda epoch: 0.95 ** epoch
+lambda1 = lambda epoch: 0.96 ** epoch
 scheduler = LambdaLR(optimizer, lambda1)
 # scheduler = MultiStepLR(optimizer, milestones=[1, 30], gamma=0.1)
 # scheduler = StepLR(optimizer, 100, gamma=0.1)
