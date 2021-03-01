@@ -1,3 +1,17 @@
+"""
+Script for generating dataset for vortex particle dynamics in an open domain and no viscosity.
+
+For each data sample
+1) Particle locations, core sizes and vortex strengths are randomly sampled at time t0.
+2) Corresponding velocity field on grid is computed for t0.
+3) Simulation using PhiFlow to obtain grid velocity fields at future time instants.
+4) Save the location, strength, core size at t0 and the velocity fields at all time instants.
+
+"""
+
+
+
+
 from functools import partial
 from phi.tf.flow import *
 import argparse

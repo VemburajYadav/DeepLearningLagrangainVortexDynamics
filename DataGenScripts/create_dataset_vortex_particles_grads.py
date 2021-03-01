@@ -1,3 +1,24 @@
+"""
+Script for generating dataset with vortex particles and the resulting velocities and
+higher order derivatives of velocity at sampled points from the domain and boundary.
+
+For each data sample
+1) Particle locations, core sizes and vortex strengths are randomly sampled.
+2) Velocity and derivatives of different orders are computed for:
+    a) all the grid points in the staggered grid.
+    b) randomly sampled non-grid points from the domain.
+    c) randomly sampled points from the boundary.
+3) Save the location, strength, core size as 'vortex_features.npz'.
+4) Save the computed features as:
+    a) 'features_points_y.npz' and 'features_points_x.npz' for the staggered grid points corresponding and x and y velocity.
+    b) 'features_domain.npz' for non-grid points.
+    c) 'features_boundaries.npz' for points in the boundaries.
+
+"""
+
+
+
+
 import torch
 from phi.flow import *
 import argparse
@@ -13,6 +34,7 @@ parser.add_argument('--offset', type=list, default=[20, 20], help='neglect regio
 parser.add_argument('--n_samples', type=int, default=8000, help='number of samples to be generated')
 parser.add_argument('--n_particles', type=int, default=10, help='number of vortex particles')
 parser.add_argument('--sigma_range', type=list, default=[2.0, 10.0], help='range for core ize sampling')
+parser.add_argument('--order', type=int, default=2, help='order of derivatives of velocities to compute')
 parser.add_argument('--train_percent', type=float, default=0.6, help='percentage of data sampled from each zone for '
                                                                      'training')
 parser.add_argument('--eval_percent', type=float, default=0.2, help='percentage of data sampled from each zone for '
@@ -40,6 +62,7 @@ N_TRAIN_SAMPLES = int(NSAMPLES * TRAIN_PERCENT)
 N_VAL_SAMPLES = int(NSAMPLES * VAL_PERCENT)
 N_TEST_SAMPLES = NSAMPLES - (N_TRAIN_SAMPLES + N_VAL_SAMPLES)
 
+ORDER = opt.order
 DIRECTORY = opt.save_dir
 
 
@@ -101,7 +124,7 @@ cat_y = torch.zeros((1, RESOLUTION[0] + 1, 1, 1), dtype=torch.float32, device='c
 cat_x = torch.zeros((1, 1, RESOLUTION[1] + 1, 1), dtype=torch.float32, device='cuda:0')
 
 # Module to compute the velocities and derivatives of velocities due to vorte particles
-VelDerivExpRed = VelocityDerivatives(kernel='GaussianVorticity', order=2).to('cuda:0')
+VelDerivExpRed = VelocityDerivatives(order=ORDER).to('cuda:0')
 
 
 # Create directories for training, validation and test sets

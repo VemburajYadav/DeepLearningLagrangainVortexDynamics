@@ -6,33 +6,17 @@ from core.custom_functions import *
 
 class VelocityDerivatives(torch.nn.Module):
 
-    def __init__(self, kernel='ExpGaussianRed', order=2):
+    def __init__(self, order=2):
 
         super(VelocityDerivatives, self).__init__()
 
-        self.kernel = kernel
         self.order = order
-
-        if self.kernel == 'ExpGaussianRed':
-            self.falloff_kernel = GaussExpFalloffKernelReduced()
-        elif self.kernel == 'ExpGaussian':
-            self.falloff_kernel = GaussExpFalloffKernel()
-        elif self.kernel == 'gaussian':
-            self.falloff_kernel = GaussianFalloffKernel()
-        elif self.kernel == 'GaussianVorticity':
-            self.falloff_kernel = GaussianFalloffKernelVelocity()
+        self.falloff_kernel = GaussianFalloffKernelVelocity()
 
 
     def forward(self, inp, points):
 
-        if self.kernel == 'gaussian':
-            y, x, tau, sig = torch.unbind(inp, dim=-1)
-        elif self.kernel == 'ExpGaussian':
-            y, x, tau, sig, c, d = torch.unbind(inp, dim=-1)
-        elif self.kernel == 'ExpGaussianRed':
-            y, x, tau, sig, d = torch.unbind(inp, dim=-1)
-        elif self.kernel == 'GaussianVorticity':
-            y, x, tau, sig = torch.unbind(inp, dim=-1)
+        y, x, tau, sig = torch.unbind(inp, dim=-1)
 
         inp_clone = inp.detach().clone()
         nparticles = y.shape[1]

@@ -1,3 +1,21 @@
+"""
+Script for generating dataset that maps velocity field by vortex particles in an open domain
+to the velocity field that satisfy appropriate boundary conditions.
+
+This script should be run after the script './create_dataset_vortex_particle_grad.py'
+with the same 'data_dir' input argument
+
+For each data sample
+1) Reads the 'vortex_features.npz' corresponding to the data sample from data_dir
+2) Computes velocity field on grid.
+3) Pressure solve step to make velocity field satisfy the boundary conditions.
+4) Save the velocity fields before and after the pressure solve step as
+   'velocity_000000.npz' and 'velocity_div_000000.npz' in the same directory.
+
+"""
+
+
+
 import torch
 from phi.flow import *
 import argparse
