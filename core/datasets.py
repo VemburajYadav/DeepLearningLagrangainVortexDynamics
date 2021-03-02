@@ -3,6 +3,8 @@ import os
 import numpy as np
 from phi.flow import Domain, Fluid, OPEN, StaggeredGrid, CLOSED
 
+
+
 class SingleVortexDataset(torch.utils.data.Dataset):
 
     def __init__(self, dir_path, num_steps=1, stride=1, resolution=[128, 128]):
@@ -111,6 +113,7 @@ class ViscousVortexDataset(torch.utils.data.Dataset):
                 'velocities': velocities}
 
 
+
 class VortexBoundariesDataset(torch.utils.data.Dataset):
 
     def __init__(self, dir_path, num_steps=1, stride=1, resolution=[128, 128]):
@@ -152,7 +155,7 @@ class VortexBoundariesDataset(torch.utils.data.Dataset):
 class DivFreeNetDataset(torch.utils.data.Dataset):
 
     def __init__(self, dir_path, resolution=(100, 100), n_dom_points=100, n_b_points=10,
-                 sample_all=False, use_frac = 1.0, sampling_type='both'):
+                 use_frac = 1.0, sampling_type='both'):
 
         super(DivFreeNetDataset, self).__init__()
 
@@ -173,6 +176,7 @@ class DivFreeNetDataset(torch.utils.data.Dataset):
             self.n_grid_dom_points = n_dom_points
             self.n_grid_dom_points_y = self.n_grid_dom_points // 2
             self.n_grid_dom_points_x = self.n_grid_dom_points - self.n_grid_dom_points_y
+            self.n_ngrid_b_points = n_b_points
         elif self.sampling_type == 'non-grid-only':
             self.n_ngrid_dom_points = n_dom_points
             self.n_ngrid_b_points = n_b_points
@@ -183,9 +187,6 @@ class DivFreeNetDataset(torch.utils.data.Dataset):
             self.n_ngrid_dom_points = n_dom_points - self.n_grid_dom_points
             self.n_ngrid_b_points = n_b_points
 
-        # self.n_dom_points = n_dom_points
-        # self.n_b_points = n_b_points
-        self.sample_all = sample_all
 
 
     def __len__(self):
@@ -195,118 +196,121 @@ class DivFreeNetDataset(torch.utils.data.Dataset):
 
         case = self.sim_paths[item]
 
-        if self.sample_all:
+        if self.sampling_type == 'grid-only':
+            grid_y_features = np.squeeze(np.load(os.path.join(case, self.points_y_filename))['arr_0'])
+            grid_x_features = np.squeeze(np.load(os.path.join(case, self.points_x_filename))['arr_0'])
+            div_free_vel = np.squeeze(np.load(os.path.join(case, self.vel_div_free_filename))['arr_0'])
+
+            div_free_vel_y = div_free_vel[:, :-1, 0]
+            div_free_vel_x = div_free_vel[:-1, :, 1]
+
+            div_free_vel_y = np.reshape(div_free_vel_y, (-1))
+            div_free_vel_x = np.reshape(div_free_vel_x, (-1))
+
+            n_grid_y_pts = grid_y_features.shape[0]
+            n_grid_x_pts = grid_x_features.shape[0]
+
+            ids_grid_y = np.arange(n_grid_y_pts)
+            np.random.shuffle(ids_grid_y)
+
+            ids_grid_x = np.arange(n_grid_x_pts)
+            np.random.shuffle(ids_grid_x)
+
+            sample_grid_y_features = grid_y_features[ids_grid_y[0: self.n_grid_dom_points_y], :]
+            sample_grid_x_features = grid_x_features[ids_grid_x[0: self.n_grid_dom_points_x], :]
+
+            sample_grid_vel_y = div_free_vel_y[ids_grid_y[0: self.n_grid_dom_points_y]]
+            sample_grid_vel_x = div_free_vel_x[ids_grid_x[0: self.n_grid_dom_points_x]]
+
+            sample_all_dom_features = np.concatenate([sample_grid_y_features, sample_grid_x_features], axis=0)
+
+            b_features = np.squeeze(np.load(os.path.join(case, self.boundaries_filename))['arr_0'])
+            n_b_pts = b_features.shape[0]
+
+            ids_b = np.arange(n_b_pts)
+            np.random.shuffle(ids_b)
+
+            sample_b_features = b_features[ids_b[0: self.n_ngrid_b_points], :]
+
+            data_dict = {'domain_points': sample_all_dom_features,
+                         'grid_y_vel': sample_grid_vel_y,
+                         'grid_x_vel': sample_grid_vel_x,
+                         'b_points': sample_b_features}
+
+            return data_dict
+
+
+        elif self.sampling_type == 'non-grid-only':
             dom_features = np.squeeze(np.load(os.path.join(case, self.dom_filename))['arr_0'])
             b_features = np.squeeze(np.load(os.path.join(case, self.boundaries_filename))['arr_0'])
-            data_dict = {'domain_points': dom_features,
-                         'b_points': b_features}
+
+            n_dom_pts = dom_features.shape[0]
+            n_b_pts = b_features.shape[0]
+
+            ids_dom = np.arange(n_dom_pts)
+            np.random.shuffle(ids_dom)
+
+            ids_b = np.arange(n_b_pts)
+            np.random.shuffle(ids_b)
+
+            sample_dom_features = dom_features[ids_dom[0: self.n_ngrid_dom_points], :]
+            sample_b_features = b_features[ids_b[0: self.n_ngrid_b_points], :]
+
+            data_dict = {'domain_points': sample_dom_features,
+                         'b_points': sample_b_features}
+
+            return data_dict
+
         else:
-            if self.sampling_type == 'grid-only':
-                grid_y_features = np.squeeze(np.load(os.path.join(case, self.points_y_filename))['arr_0'])
-                grid_x_features = np.squeeze(np.load(os.path.join(case, self.points_x_filename))['arr_0'])
-                div_free_vel = np.squeeze(np.load(os.path.join(case, self.vel_div_free_filename))['arr_0'])
+            grid_y_features = np.squeeze(np.load(os.path.join(case, self.points_y_filename))['arr_0'])
+            grid_x_features = np.squeeze(np.load(os.path.join(case, self.points_x_filename))['arr_0'])
+            div_free_vel = np.squeeze(np.load(os.path.join(case, self.vel_div_free_filename))['arr_0'])
 
-                div_free_vel_y = div_free_vel[:, :-1, 0]
-                div_free_vel_x = div_free_vel[:-1, :, 1]
+            div_free_vel_y = div_free_vel[:, :-1, 0]
+            div_free_vel_x = div_free_vel[:-1, :, 1]
 
-                div_free_vel_y = np.reshape(div_free_vel_y, (-1))
-                div_free_vel_x = np.reshape(div_free_vel_x, (-1))
+            div_free_vel_y = np.reshape(div_free_vel_y, (-1))
+            div_free_vel_x = np.reshape(div_free_vel_x, (-1))
 
-                n_grid_y_pts = grid_y_features.shape[0]
-                n_grid_x_pts = grid_x_features.shape[0]
+            n_grid_y_pts = grid_y_features.shape[0]
+            n_grid_x_pts = grid_x_features.shape[0]
 
-                ids_grid_y = np.arange(n_grid_y_pts)
-                np.random.shuffle(ids_grid_y)
+            ids_grid_y = np.arange(n_grid_y_pts)
+            np.random.shuffle(ids_grid_y)
 
-                ids_grid_x = np.arange(n_grid_x_pts)
-                np.random.shuffle(ids_grid_x)
+            ids_grid_x = np.arange(n_grid_x_pts)
+            np.random.shuffle(ids_grid_x)
 
-                sample_grid_y_features = grid_y_features[ids_grid_y[0: self.n_grid_dom_points_y], :]
-                sample_grid_x_features = grid_x_features[ids_grid_x[0: self.n_grid_dom_points_x], :]
+            sample_grid_y_features = grid_y_features[ids_grid_y[0: self.n_grid_dom_points_y], :]
+            sample_grid_x_features = grid_x_features[ids_grid_x[0: self.n_grid_dom_points_x], :]
 
-                sample_grid_vel_y = div_free_vel_y[ids_grid_y[0: self.n_grid_dom_points_y]]
-                sample_grid_vel_x = div_free_vel_x[ids_grid_x[0: self.n_grid_dom_points_x]]
+            sample_grid_vel_y = div_free_vel_y[ids_grid_y[0: self.n_grid_dom_points_y]]
+            sample_grid_vel_x = div_free_vel_x[ids_grid_x[0: self.n_grid_dom_points_x]]
 
-                sample_all_dom_features = np.concatenate([sample_grid_y_features, sample_grid_x_features], axis=0)
+            dom_features = np.squeeze(np.load(os.path.join(case, self.dom_filename))['arr_0'])
+            b_features = np.squeeze(np.load(os.path.join(case, self.boundaries_filename))['arr_0'])
 
-                data_dict = {'domain_points': sample_all_dom_features,
-                             'grid_y_vel': sample_grid_vel_y,
-                             'grid_x_vel': sample_grid_vel_x}
+            n_dom_pts = dom_features.shape[0]
+            n_b_pts = b_features.shape[0]
 
-                return data_dict
+            ids_dom = np.arange(n_dom_pts)
+            np.random.shuffle(ids_dom)
 
+            ids_b = np.arange(n_b_pts)
+            np.random.shuffle(ids_b)
 
-            elif self.sampling_type == 'non-grid-only':
-                dom_features = np.squeeze(np.load(os.path.join(case, self.dom_filename))['arr_0'])
-                b_features = np.squeeze(np.load(os.path.join(case, self.boundaries_filename))['arr_0'])
+            sample_dom_features = dom_features[ids_dom[0: self.n_ngrid_dom_points], :]
+            sample_b_features = b_features[ids_b[0: self.n_ngrid_b_points], :]
 
-                n_dom_pts = dom_features.shape[0]
-                n_b_pts = b_features.shape[0]
+            sample_all_dom_features = np.concatenate([sample_grid_y_features, sample_grid_x_features,
+                                                      sample_dom_features], axis=0)
 
-                ids_dom = np.arange(n_dom_pts)
-                np.random.shuffle(ids_dom)
+            data_dict = {'domain_points': sample_all_dom_features,
+                         'b_points': sample_b_features,
+                         'grid_y_vel': sample_grid_vel_y,
+                         'grid_x_vel': sample_grid_vel_x}
 
-                ids_b = np.arange(n_b_pts)
-                np.random.shuffle(ids_b)
-
-                sample_dom_features = dom_features[ids_dom[0: self.n_ngrid_dom_points], :]
-                sample_b_features = b_features[ids_b[0: self.n_ngrid_b_points], :]
-
-                data_dict = {'domain_points': sample_dom_features,
-                             'b_points': sample_b_features}
-
-                return data_dict
-
-            else:
-                grid_y_features = np.squeeze(np.load(os.path.join(case, self.points_y_filename))['arr_0'])
-                grid_x_features = np.squeeze(np.load(os.path.join(case, self.points_x_filename))['arr_0'])
-                div_free_vel = np.squeeze(np.load(os.path.join(case, self.vel_div_free_filename))['arr_0'])
-
-                div_free_vel_y = div_free_vel[:, :-1, 0]
-                div_free_vel_x = div_free_vel[:-1, :, 1]
-
-                div_free_vel_y = np.reshape(div_free_vel_y, (-1))
-                div_free_vel_x = np.reshape(div_free_vel_x, (-1))
-
-                n_grid_y_pts = grid_y_features.shape[0]
-                n_grid_x_pts = grid_x_features.shape[0]
-
-                ids_grid_y = np.arange(n_grid_y_pts)
-                np.random.shuffle(ids_grid_y)
-
-                ids_grid_x = np.arange(n_grid_x_pts)
-                np.random.shuffle(ids_grid_x)
-
-                sample_grid_y_features = grid_y_features[ids_grid_y[0: self.n_grid_dom_points_y], :]
-                sample_grid_x_features = grid_x_features[ids_grid_x[0: self.n_grid_dom_points_x], :]
-
-                sample_grid_vel_y = div_free_vel_y[ids_grid_y[0: self.n_grid_dom_points_y]]
-                sample_grid_vel_x = div_free_vel_x[ids_grid_x[0: self.n_grid_dom_points_x]]
-
-                dom_features = np.squeeze(np.load(os.path.join(case, self.dom_filename))['arr_0'])
-                b_features = np.squeeze(np.load(os.path.join(case, self.boundaries_filename))['arr_0'])
-
-                n_dom_pts = dom_features.shape[0]
-                n_b_pts = b_features.shape[0]
-
-                ids_dom = np.arange(n_dom_pts)
-                np.random.shuffle(ids_dom)
-
-                ids_b = np.arange(n_b_pts)
-                np.random.shuffle(ids_b)
-
-                sample_dom_features = dom_features[ids_dom[0: self.n_ngrid_dom_points], :]
-                sample_b_features = b_features[ids_b[0: self.n_ngrid_b_points], :]
-
-                sample_all_dom_features = np.concatenate([sample_grid_y_features, sample_grid_x_features,
-                                                          sample_dom_features], axis=0)
-
-                data_dict = {'domain_points': sample_all_dom_features,
-                             'b_points': sample_b_features,
-                             'grid_y_vel': sample_grid_vel_y,
-                             'grid_x_vel': sample_grid_vel_x}
-
-                return data_dict
+            return data_dict
 
 
 
