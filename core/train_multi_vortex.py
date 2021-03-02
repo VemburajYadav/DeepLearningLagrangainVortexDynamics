@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--epochs', type=int, default=250, help='number of epochs to train for')
-parser.add_argument('--data_dir', type=str, default='/media/vemburaj/9d072277-d226-41f6-a38d-1db833dca2bd/Datasets_LVD/'
+parser.add_argument('--data_dir', type=str, default='../'
                                                     'data/p10_gaussian_dataset_120x120_4000',
                     help='path to the directory of the dataset')
 parser.add_argument('--network', type=str, default='Vortex',
@@ -29,7 +29,7 @@ parser.add_argument('--stride', type=int, default=5, help='skip intermediate tim
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for training')
 parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
-parser.add_argument('--logs_dir', type=str, default='../logs_temp', help='directory to save checkpoints and training summaries')
+parser.add_argument('--logs_dir', type=str, default='../logs', help='directory to save checkpoints and training summaries')
 parser.add_argument('--ex', type=str, default='T1_p10_gauss_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_4000_2', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
