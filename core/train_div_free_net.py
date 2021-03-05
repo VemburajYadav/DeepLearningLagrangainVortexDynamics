@@ -158,8 +158,7 @@ BCNet.requires_grad_(requires_grad=True).train()
 # Optimizer
 optimizer = Adam(params=BCNet.parameters(), lr=opt.lr, weight_decay=opt.l2)
 
-# lambda1 = lambda epoch: 0.95 ** epoch
-# scheduler = LambdaLR(optimizer, lambda1)
+
 
 # Restore optimizer state for resuming training (if applicable)
 if opt.ex == opt.load_weights_ex:

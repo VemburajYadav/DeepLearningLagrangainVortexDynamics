@@ -123,7 +123,7 @@ points_x = torch.tensor(FLOW_REF.velocity.x.points.data, dtype=torch.float32, de
 cat_y = torch.zeros((1, RESOLUTION[0] + 1, 1, 1), dtype=torch.float32, device='cuda:0')
 cat_x = torch.zeros((1, 1, RESOLUTION[1] + 1, 1), dtype=torch.float32, device='cuda:0')
 
-# Module to compute the velocities and derivatives of velocities due to vorte particles
+# Module to compute the velocities and derivatives of velocities due to vortex particles
 VelDerivExpRed = VelocityDerivatives(order=ORDER).to('cuda:0')
 
 

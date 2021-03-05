@@ -20,7 +20,7 @@ from visualisations.my_plot import set_size
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--case_path', type=str, default='/home/vemburaj/'
+parser.add_argument('--case_path', type=str, default='../../Datasets_LVD/'
                                                     'data/p10_b_sb_gaussian_dataset_120x120_4000/test',
                     help='path to the directory with data to make predictions')
 parser.add_argument('--load_weights_ex', type=str, default='VortexBCNet',
@@ -86,10 +86,10 @@ ckpt_file_BC = os.path.join(ckpt_dir_BC, checkpoints_files_BC[epoch_id_BC])
 params_VN = torch.load(ckpt_file_VN)['model_state_dict']
 params_BC = torch.load(ckpt_file_BC)['model_state_dict']
 
-VortexNet = MultiStepMultiVortexNetwork(depth=opt.depth, hidden_units=opt.hidden_units, batch_norm=True,
-                                        kernel=opt.kernel, norm_mean=MEAN, norm_stddev=STDDEV, order=opt.order,
-                                        num_steps=opt.num_time_steps, distinct_nets=opt.distinct_nets)
-BCNet = BoundaryConditionNetwork(depth=opt.depth, hidden_units=opt.hidden_units, batch_norm=True, order=opt.order)
+VortexNet = MultiStepMultiVortexNetwork(depth=opt.depth, hidden_units=opt.hidden_units, order=opt.order,
+                                        num_steps=opt.num_time_steps)
+BCNet = BoundaryConditionNetwork(depth=opt.depth, hidden_units=opt.hidden_units, order=opt.order)
+
 
 VortexNet.single_step_net.load_state_dict(params_VN)
 BCNet.load_state_dict(params_BC)
@@ -97,7 +97,7 @@ BCNet.load_state_dict(params_BC)
 BCNet.to('cuda:0')
 BCNet = BCNet.eval()
 
-deriv_module = VelocityDerivatives(order=opt.order, kernel=opt.kernel).to('cuda:0')
+deriv_module = VelocityDerivatives(order=opt.order).to('cuda:0')
 
 VortexNet.to('cuda:0')
 VortexNet = VortexNet.eval()
@@ -149,29 +149,11 @@ for case in range(len(case_paths)):
 
 
 
-    if opt.kernel == 'offset-gaussian':
-        off0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
-        sigl0 = torch.zeros((1, 1), dtype=torch.float32, device='cuda:0')
-        inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1), v0, u0, off0, sigl0], dim=-1)
-        falloff_kernel = OffsetGaussianFalloffKernel()
-    if opt.kernel == 'ExpGaussian':
-        c0 = torch.zeros((1, nparticles), dtype=torch.float32, device='cuda:0')
-        d0 = torch.zeros((1, nparticles), dtype=torch.float32, device='cuda:0') + 0.001
-        py, px = torch.unbind(loc_gpu, dim=-1)
-        inp_feature = torch.stack([py, px, tau_gpu.view(-1, nparticles), sig_gpu.view(-1, nparticles), c0, d0], dim=-1)
-        falloff_kernel = GaussExpFalloffKernel(dt=torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0'))
-    if opt.kernel == 'ExpGaussianRed':
-        d0 = torch.zeros((1, nparticles), dtype=torch.float32, device='cuda:0') + 0.001
-        py, px = torch.unbind(loc_gpu, dim=-1)
-        inp_feature = torch.stack([py, px, tau_gpu.view(-1, nparticles), sig_gpu.view(-1, nparticles), d0], dim=-1)
-        falloff_kernel = GaussExpFalloffKernelReduced(dt=torch.tensor(opt.stride, dtype=torch.float32, device='cuda:0'))
     if opt.kernel == 'GaussianVorticity':
         py, px = torch.unbind(loc_gpu, dim=-1)
         inp_feature = torch.stack([py, px, tau_gpu.view(-1, nparticles), sig_gpu.view(-1, nparticles)], dim=-1)
         falloff_kernel = GaussianFalloffKernelVelocity()
-    elif opt.kernel == 'gaussian':
-        inp_feature = torch.cat([loc_gpu.view(-1, 2), tau_gpu.view(-1, 1), sig_gpu.view(-1, 1)], dim=-1)
-        falloff_kernel = GaussianFalloffKernel()
+
 
     pred_velocites = []
     losses= []
