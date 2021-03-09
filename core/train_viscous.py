@@ -19,13 +19,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--epochs', type=int, default=250, help='number of epochs to train for')
 parser.add_argument('--data_dir', type=str, default='../'
-                                                    'data/p100_gaussian_dataset_viscous_120x120_4000',
+                                                    'data/p10_gaussian_dataset_viscous_120x120_4000',
                     help='path to the directory of the dataset')
 parser.add_argument('--network', type=str, default='Vortex',
                     help='type of neural network: Vortex or Interaction')
 parser.add_argument('--num_time_steps', type=int, default=1, help='train the network on loss for more than 1 time step')
-parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride in the dataset '
-                                                          'for training')
+parser.add_argument('--sim_time_step', type=float, default=0.2,
+                    help='time step in seconds for running numerical simulations')
+parser.add_argument('--network_time_step', type=float, default=1.0,
+                    help='time step in seconds over which the neural network is trained to make predictions')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for training')
 parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
@@ -43,11 +45,14 @@ parser.add_argument('--loss_scaling', type=float, default=1.0, help='scaling of 
 opt = parser.parse_args()
 
 NUM_TIME_STEPS = opt.num_time_steps
-STRIDE = opt.stride
 RESOLUTION = opt.domain
 BATCH_SIZE = opt.batch_size
 NETWORK = opt.network
 data_dir = opt.data_dir
+
+SIM_TIME_STEP = opt.sim_time_step
+NN_TIME_STEP = opt.network_time_step
+STRIDE = int(NN_TIME_STEP / SIM_TIME_STEP)
 
 
 # weights for loss for training with more than 1 time step

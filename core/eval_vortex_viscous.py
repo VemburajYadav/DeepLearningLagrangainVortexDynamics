@@ -21,8 +21,10 @@ parser.add_argument('--depth', type=int, default=5, help='number of hidden layer
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--order', type=int, default=2, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
 parser.add_argument('--num_time_steps', type=int, default=2, help='number of time steps to evaluate the metrics for')
-parser.add_argument('--stride', type=int, default=1, help='skip intermediate time frames corresponding to stride in the dataset '
-                                                          'for evaluation')
+parser.add_argument('--sim_time_step', type=float, default=0.2,
+                    help='time step in seconds for running numerical simulations')
+parser.add_argument('--network_time_step', type=float, default=1.0,
+                    help='time step in seconds over which the neural network is trained to make predictions')
 parser.add_argument('--logs_dir', type=str, default=None, help='directory with checkpoints and training summaries')
 parser.add_argument('--load_weights_ex', type=str, default=None,
                     help='name of the experiment to load checkpoint from')
@@ -37,11 +39,15 @@ parser.add_argument('--save_dir', type=str, default=None,
 opt = parser.parse_args()
 
 NUM_TIME_STEPS = opt.num_time_steps
-STRIDE = opt.stride
 RESOLUTION = opt.domain
 NETWORK = opt.network
 data_dir = opt.data_dir
 save_dir = opt.save_dir
+
+SIM_TIME_STEP = opt.sim_time_step
+NN_TIME_STEP = opt.network_time_step
+STRIDE = int(NN_TIME_STEP / SIM_TIME_STEP)
+
 
 # get the directory paths for individual data samples
 check_single_case = True in [i.endswith('.npz') for i in sorted(glob.glob(os.path.join(data_dir, '*')))]
