@@ -23,6 +23,9 @@ parser.add_argument('--data_dir', type=str, default='../'
                     help='path to the directory of the dataset')
 parser.add_argument('--network', type=str, default='Vortex',
                     help='type of neural network: Vortex or Interaction')
+parser.add_argument('--order', type=int, default=2,
+                    help='derivatives of velocity fields for influence vectors. '
+                         'Either 0, 1, 2 or 3 (Appliucable onyl if network is Vortex)')
 parser.add_argument('--num_time_steps', type=int, default=1, help='train the network on loss for more than 1 time step')
 parser.add_argument('--sim_time_step', type=float, default=0.2,
                     help='time step in seconds for running numerical simulations')
@@ -35,7 +38,6 @@ parser.add_argument('--logs_dir', type=str, default='../logs', help='directory t
 parser.add_argument('--ex', type=str, default='T1_p10_gauss_viscous_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_4000_1', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
-parser.add_argument('--order', type=int, default=1, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--loss_scaling', type=float, default=1.0, help='scaling of loss for training to predict to more than one time stepo')
 
