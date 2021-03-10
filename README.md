@@ -1,10 +1,9 @@
 # Simulation of Fluid Flows based on Data-driven Evolution of Vortex Particles
 
-## Files 
+This repository contains the code for my master thesis project for the masters programme Computational Sciences in Engineering (CSE) at TU Braunschweig.  
+- [Report](https://www.dropbox.com/s/jrbpttt3a17pf1s/Report_revised_4868459.pdf?dl=0) for the project.
+- [Slides](https://www.dropbox.com/scl/fi/pyqj9hwrk6370iqmfdo0d/Presentation_MA.pptx?dl=0&rlkey=aywt3nogtie7ni28brnrjr19b) of the final presentation.
 
-- [Weekly Work Schedule](https://docs.google.com/spreadsheets/d/171NmDXxsqH2n5pfHbGNPH_iO45OriolQQLX5hPMuMYU/edit?usp=sharing)
-- [Report](https://www.overleaf.com/4688964232sncxgbqgphzp)
-- [Important Observed Issues and choosen Solutions](https://www.overleaf.com/read/vcjgdvstccmw)
 
 ## Installation
 
@@ -29,28 +28,61 @@ $ pip install .
 conda install pytorch==1.2.0 torchvision==0.4.0 cudatoolkit=10.0 -c pytorch
 ```
 
-## Dataset Generation
-The scripts to generate different datasets would exist in `cd DataGenSctripts/`
+## Neural Networks for Vortex Particle Dynamics (Open domain)
 
-### Single Vortex Model
+In order to generate datasets for training neural networks to predict dynamics of vortex particles, we use [PhiFlow](https://github.com/tum-pbs/PhiFlow')
+to perform numerical simulations to create data samples with grid-based velocity fields. For more information related to our process of generating data samples, and an additional optimization routine to obtain pseudo-labels for features of vortex particles form the grid-based velocity fields, which we refer to as 
+**Vortex-Fit**, please refer to Section 3.2 of the [Report](https://www.dropbox.com/s/jrbpttt3a17pf1s/Report_revised_4868459.pdf?dl=0)
+   
+The scripts to generate different datasets exist in `cd DataGenSctripts/`.
+
+### Datasets
+
+- To create dataset for **inviscid** flows, execute the following script
 ```
 cd DataGenScripts/
-python create_dataset_single_vortex.py --domain [256, 256]
---offset [60, 60]
---n_samples 8000
---strength_range [-2, 2]
---strength_threshold 1.0
---sigma_range [5.0, 25.0]
+python create_dataset_dataset_multi_vortex.py --domain [120, 120]
+--offset [40, 40]
+--n_samples 4000
+--sigma_range [2.0, 10.0]
 --train_percent 0.6
 --eval_percent 0.2
---num_time_steps 25 
---save_dir /path/to/save/the/dataset
+--num_time_steps 10
+--time_step 0.2 
+--save_dir '/path/to/save/the/dataset'
 ```
 
-## Neural Network Training
-The scripts related to neural network training exists in `cd core/`
+- To create dataset for **viscous** flows, execute the following script
+```
+cd DataGenScripts/
+python create_dataset_dataset_multi_vortex.py --domain [120, 120]
+--offset [40, 40]
+--n_samples 4000
+--n_particles 10
+--sigma_range [2.0, 10.0]
+--viscosity_range [0.0, 3.0]
+--train_percent 0.6
+--eval_percent 0.2
+--num_time_steps 10
+--time_step 0.2 
+--save_dir '/path/to/save/the/dataset'
+```
 
-### Single Vortex Model
+- The values given above to different input arguments for the running the script are the default values used in our work for which we present the results.
+Only change the `--save_dir` argument to specify the path to the directory, where the dataset needs to be saved. 
+
+- In the path specified by `--save_dir`, three different sub-directories named **train**, **val** and **test**
+will be created, where the train-val-test split is controlled by the `-train_percent` and `--eval_percent` arguments to the script. The overall number number of data samples is controlle by the `--n_samples` argument.
+
+- We consider a domain with 120 x 120 grid cells of unit length, which is specified by the `--domain` argument as a list.
+
+- The argument `--n_particles` specifies the number of vortex particles 
+- The argument `--sigma_range` specifies the range of values for **core size** of vortex particles, from which the values are uniformly sampled from. Same applies for the `--viscosity` argument in the script for viscous flows.
+ 
+
+### Neural Network Training
+The scripts related to neural network training and evaluation exists in `cd core/`
+
 ```
 cd core/
 python train_single_vortex.py --domain [256, 256]

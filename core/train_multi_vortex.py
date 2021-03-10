@@ -62,7 +62,7 @@ loss_weights = torch.tensor(weights, dtype=torch.float32, device=('cuda:0'))
 
 # get the directories with the data
 train_dir = os.path.join(data_dir, 'train')
-val_dir = os.path.join(data_dir, 'train')
+val_dir = os.path.join(data_dir, 'val')
 test_dir = os.path.join(data_dir, 'test')
 
 
