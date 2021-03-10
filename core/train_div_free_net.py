@@ -30,7 +30,9 @@ parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regula
 parser.add_argument('--logs_dir', type=str, default='../logs', help='directory to save checkpoints and training summaries')
 parser.add_argument('--ex', type=str, default='BC_both_gaussian_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_8000_2', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
-parser.add_argument('--sampling_type', type=str, default='both', help='strategy to sample points for PINN training')
+parser.add_argument('--sampling_type', type=str, default='both',
+                    help='strategy to sample points for PINN training. '
+                         'Options: both, grid-only, non-grid-only')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')
 parser.add_argument('--order', type=int, default=2, help='derivatives of velocity fields for interaction. Either 0, 1 or 2')
@@ -251,7 +253,7 @@ for epoch in range(start_epoch, opt.epochs):
 
 
         # computing mse loss for domain points (grid only)
-        if SAMPLING_TYPE == 'grid' or SAMPLING_TYPE == 'both':
+        if SAMPLING_TYPE == 'grid-only' or SAMPLING_TYPE == 'both':
             grid_vel_y = batch_data_dict['grid_y_vel'].to('cuda:0')
             grid_vel_x = batch_data_dict['grid_x_vel'].to('cuda:0')
             n_grid_y_pts = grid_vel_y.shape[1]
@@ -347,7 +349,7 @@ for epoch in range(start_epoch, opt.epochs):
 
             bc_loss = torch.sum(b_normal_vel ** 2) / b_normal_vel.nelement()
 
-            if SAMPLING_TYPE == 'grid' or SAMPLING_TYPE == 'both':
+            if SAMPLING_TYPE == 'grid-only' or SAMPLING_TYPE == 'both':
                 grid_vel_y = val_batch_data_dict['grid_y_vel'].to('cuda:0')
                 grid_vel_x = val_batch_data_dict['grid_x_vel'].to('cuda:0')
                 n_grid_y_pts = grid_vel_y.shape[1]

@@ -107,7 +107,7 @@ python train_multi_vortex.py --domain [120, 120]
 --network_time_step 1.0
 --batch_size 32
 --lr 1e-3
---l2 1e-4
+--l2 1e-5
 --logs_dir '../logs'
 --ex '/name/of/the/experiment'
 --load_weights_ex '/name/of/the/experiment/to/load/weights/to/initialize'
@@ -128,7 +128,7 @@ python train_viscous.py --domain [120, 120]
 --network_time_step 1.0
 --batch_size 32
 --lr 1e-3
---l2 1e-4
+--l2 1e-5
 --logs_dir '../logs'
 --ex '/name/of/the/experiment'
 --load_weights_ex '/name/of/the/experiment/to/load/weights/to/initialize'
@@ -311,31 +311,68 @@ python create_dataset_dataset_vortex_particle_grads.py --domain [120, 120]
 
 - This step samples vortex particle locations, strengths and core sizes and computes the resulting velocity and 
 higher order derivatives of velocity upto order specified by the `-order` argument at
-    - points in the staggered grid corresponding to y-velocity as saved as `features_points_y.npz`.
-    - points in the staggered grid corresponding to x-velocity as saved as `features_points_x.npz`.
-    - 10000 other points in the domain which are not part of the 
+    - points in the staggered **grid** corresponding to y-velocity as saved as `features_points_y.npz`.
+    - points in the staggered **grid** corresponding to x-velocity as saved as `features_points_x.npz`.
+    - 10000 other **non-grid** points in the domain which are not part of the 
     staggered grid and saved as `features_domian.npz`.
     - 4000 points on the boundaries and saved as `features_boundaries.npz`.
-    - For example for for order 2, these arrays are of shape
+    - For example, with order 2, these arrays are of shape
      `(1, NPOINTS, 16)`, where the last dimension of size 16 
      corresponds to 2 indices for location, 12 indices for velocity 
      and its derivatives. The last 2 indices corresponds to normal vectors for boundary points and the binary ground-truth velocity labels for
-     the domain points (grid and non-grid).
+     the domain points (**grid** and **non-grid**).
      
-- Second, execute the script `cd DataGenScripts/create_div_free_datasety`
+- Second, execute the script `cd DataGenScripts/create_div_free_dataset.py`
 ```
 cd DataGenScripts/
 python create_dataset_div_free_dataset.py --domain [120, 120]
 --data_dir '/path/to/the/dataset/'
 ```
 
-- Set the `-data_dir` to be same as the `--save_dir` argument in previous script.
+- Set the `--data_dir` to be same as the `--save_dir` argument in previous script.
 - This script reads the vortex particle features generated from the first script and generates 2 velocity fields:
     - `velocity_000000.npz`: velocity field in an open domain as result of vortex particles.
     - `velocity_div_000000.npz`: modified velocity field in presence of boundaries.
     
     
-### Training
+### Neural Network Training
+
+To train **BCNet**, we employ training strategy similar to 
+[Physics Informed Neural Networks](https://arxiv.org/abs/1711.10561). In addition **MSE** loss 
+, we employ **losses based on the divergence** of correction velocity field predicted by **BCNet** and the the **boundary condition loss**.
+
+- Execute the following script to train **BCNet**
+ ```
+cd core/
+python train_div_free_net.py --domain [120, 120]
+--epochs 500
+--data_dir '/path/to/the/dataset/'
+--sampling_type 'both'
+--n_domain_pts 500
+--n_boundary_pts 50
+--order 2
+--batch_size 32
+--lr 1e-3
+--l2 1e-5
+--logs_dir '../logs'
+--ex '/name/of/the/experiment'
+--load_weights_ex '/name/of/the/experiment/to/load/weights/to/initialize'
+--depth 5
+--hiden_units 100
+```
+
+- **BCNet** takes position of any point, velocity and higher derivatives of velocity at that point due to vortex particles as input. It outputs the correction velocity at that point.
+- The `--order` argument specifies the maximum order of derivatives of velocity to consider for **BCNet** input. 
+- The argument `-sampling_type` indicates the type of points to sample during training. There are 3 differnt options:
+    - `'grid-only'`: Only points in the domain, which belong to the staggered grid would be sampled. Since, the target velocity
+    is available only for **grid** points, the network could be trained with both **MSE** and **divergence** losses.
+    - `'non-grid-only'`: Only points in the domain, which do not belong to the staggered grid would be sampled. Only **divergence** loss would be applicable under this setting.
+    - `'both'`: Both **grid** and **non-grid** points would be sampled. **Divergence** loss would be applicable for all the points, whereas **MSE** 
+    loss would be applicable for only **grid** points. This is the default setting in our work.
+- The argument `--n_domain_pts` specifies the number of points in the boundary to be randomly sampled during each mini-batch execution to
+compute the **boundary condition** loss.
+
+
 
 
     
