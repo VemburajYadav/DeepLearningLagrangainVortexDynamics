@@ -172,7 +172,7 @@ python eval_multi_vortex.py --domain [120, 120]
 --num_time_steps 1 
 --sim_time_step 0.2
 --network_time_step 1.0
---ckpt_path '/path/to/the/checkpoint/file'
+--ckpt_path '../model/ckpt_vortexnet_2_inviscid.pytorch'
 --depth 5
 --hiden_units 100
 --save_dir '/path/to/save/prediction/outputs/'
@@ -188,7 +188,7 @@ python eval_vortex_viscous.py --domain [120, 120]
 --num_time_steps 1 
 --sim_time_step 0.2
 --network_time_step 1.0
---ckpt_path '/path/to/the/checkpoint/file'
+--ckpt_path '../model/ckpt_vortexnet_2_viscous.pytorch'
 --depth 5
 --hiden_units 100
 --save_dir '/path/to/save/prediction/outputs/'
@@ -206,7 +206,7 @@ For example, in order to evaluate the metrics over a whole validation set of the
 - Alternatively to load the checkpoints, `-logs_dir` and `--load_weights_ex` arguments could be specified to directly load the 
 best checkpoint file from a particular experiment.  
  
-- The `-save_dir` argument specifies the directory to save neural network outputs. A specific subdirectory corresponding to each data sample will be created to save the outputs. Default to 
+- The `--save_dir` argument specifies the directory to save neural network outputs. A specific subdirectory corresponding to each data sample will be created to save the outputs. Default to 
 `None` for not saving anything.
 
     - The predictions of vortex particle dynamics are saved as a numpy array 
@@ -219,7 +219,12 @@ of shape `(1, NPARTICLES, 4, NUM_TIME_STEPS + 1)` in   `vortex_features_predicti
 and are saved as `mse_loss.npz` and `mae_loss.npz` respectively of shape 
 `(NUM_TIME_STEPS + 1)`.
  
- 
+- `cd model/` has the checkpoints of all our trained models.
+    - `ckpt_vortexnet_0_inviscid.pytorch`, `ckpt_vortexnet_1_inviscid.pytorch`, `ckpt_vortexnet_2_inviscid.pytorch` and
+    `ckpt_vortexnet_3_inviscid.pytorch` for **Vortex Network** trained with order 0, 1, 2 and 3 respectively for inviscid flows
+    - `ckpt_vortexnet_2_viscous.pytorch` for **Vortex Network** of order 2 for viscous flows.
+    - `ckpt_interaction_inviscid.pytorch` for **Interaction Network** for inviscid flows.
+
 ### Inference
 
 The inference scripts exists in `cd inference/`. It makes predictions for
@@ -240,7 +245,7 @@ python sim_and_predict_vortex.py --domain [120, 120]
 --num_time_steps 50 
 --sim_time_step 0.2
 --network_time_step 1.0
---ckpt_path '/path/to/the/checkpoint/file'
+--ckpt_path '../model/ckpt_vortexnet_2_inviscid.pytorch'
 --depth 5
 --hiden_units 100
 --save_dir '/path/to/save/prediction/outputs/'
@@ -261,7 +266,7 @@ python sim_and_predict_viscous_vortex.py --domain [120, 120]
 --num_time_steps 50 
 --sim_time_step 0.2
 --network_time_step 1.0
---ckpt_path '/path/to/the/checkpoint/file'
+--ckpt_path '../model/ckpt_vortexnet_2_viscous.pytorch'
 --depth 5
 --hiden_units 100
 --save_dir '/path/to/save/prediction/outputs/'
@@ -374,9 +379,12 @@ python train_div_free_net.py --domain [120, 120]
 `n_domain_pts`.  
 - The argument `--n_boundary_pts` specifies the number of points in the boundary to be randomly sampled during each mini-batch execution to
 compute the **boundary condition** loss.
+- The checkpoint of trained **BCNet** with order 2 is located in `model/ckpt_bcnet_2.pytorch`
+
 
 ### Evaluation
-Since **VortexNet** and **BCNet** are trained separately on different datasets, a separate dataset with numerical simulations in presence of boundaries for evaluation.
+Since **VortexNet** and **BCNet** are trained separately on different datasets, a separate dataset with numerical simulations in 
+presence of boundaries is generated for evaluation.
 ```
 cd DataGenScripts/
 python create_dataset_dataset_boundariesx.py --domain [120, 120]
@@ -400,8 +408,8 @@ python eval_vortex_boundaries.py --domain [120, 120]
 --num_time_steps 1 
 --sim_time_step 0.2
 --network_time_step 1.0
---ckpt_path_vortex '/path/to/the/checkpoint/file/for/VortexNet'
---ckpt_path_bc '/path/to/the/checkpoint/file/for/BCNet'
+--ckpt_path_vortex '../model/ckpt_vortexnet_2_inviscid.pytorch'
+--ckpt_path_bc '../model/ckpt_bcnet_2.pytorch'
 --depth 5
 --hiden_units 100
 --save_dir '/path/to/save/prediction/outputs/'
@@ -414,6 +422,28 @@ from **VortexNet** and after predictions from **VortexNet + BCNet**.
 
 
 ### Inference
+
+The inference script could be executed as
+```
+cd inference/
+python eval_vortex_boundaries.py --domain [120, 120]
+--location '../sample/location_000000.npz'
+--strength '../sample/strength_000000.npz'
+--core_size '../sample/sigma_000000.npz'
+--sim True
+--network 'Vortex'
+--order 2
+--num_time_steps 1 
+--sim_time_step 0.2
+--network_time_step 1.0
+--ckpt_path_vortex '../model/ckpt_vortexnet_2_inviscid.pytorch'
+--ckpt_path_bc '../model/ckpt_bcnet_2.pytorch'
+--depth 5
+--hiden_units 100
+--save_dir '/path/to/save/prediction/outputs/'
+```
+
+- The only difference here as compared to the open domain case, is that the script does not perform any **Vortex-Fit**.
 
 
 
