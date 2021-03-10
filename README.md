@@ -143,12 +143,12 @@ for training with **Vortex Network** and `'Interaction'` for training with **Int
 **Interaction Network**.
 
 - The `--sim_time_step` argument specifies the time step with which simulations are performed in the dataset.
-- The `--mnetwork_time_step` argument specifies the value for which the neural network model should be trained to make predictions over a single time step.
+- The `--network_time_step` argument specifies the value for which the neural network model should be trained to make predictions over a single time step.
 - As mentioned in the dataset section, `--sim_time_step` is 0.2 seconds. We set `--network_time_step` to 1.0 seconds for all the networks in order to make the networks predict over a time step of 1.0 seconds.
 - The `--num_time_steps` arguemnt specifies the number of times the neural network needs to be rolled out in order to make predictions for multiple time steps.
 - The `--lr` and `--l2` specifies the base learning rate and the l2 regularisation parameter respectively.
 - The training checkpoints and summaries of every training run would be saved in a logs directory specified by the `--logs_dir` argument and in a sub-directory specified by the
-name of the experiment specified by `--ex` argument. 
+name of the experiment in the  `--ex` argument. 
 For example if `--logs_dir` is `'../logs'` and `-ex` is `'VortexNet'`, then the training summaries will be saved in 
 `./logs/VortexNet_2/`.
 - In order to initialise the weights of the network from a different experiment, specify the name of the corrsponding experiment in   `--load_weigthts_ex`. In order to resume an interrupted training of any experiment, set 
@@ -175,6 +175,7 @@ python eval_multi_vortex.py --domain [120, 120]
 --ckpt_path '/path/to/the/checkpoint/file'
 --depth 5
 --hiden_units 100
+--save_dir '/path/to/save/prediction/outputs/'
 ```
 
 - To execute the evaluation script for networks trained for **viscous** flows
@@ -221,6 +222,65 @@ and are saved as `mse_loss.npz` and `mae_loss.npz` respectively of shape
  
 ### Inference
 
-The inference scripts exists in `cd inference/`. It predicts 
+The inference scripts exists in `cd inference/`. It makes predictions 
+the particle dynamics from trained neural model and saves the resulting plots and videos.
+Optionally, it also performs numerical simulation and **Vortex-Fit** for comparison.
+
+- To execute the inference script for networks trained for **inviscid** flows
+```
+cd inference/
+python sim_and_predict_vortex.py --domain [120, 120]
+--location '../sample/location_000000.npz'
+--strength '../sample/strength_000000.npz'
+--core_size '../sample/sigma_000000.npz'
+--sim True
+--vortex_fit False
+--network 'Vortex'
+--order 2
+--num_time_steps 50 
+--sim_time_step 0.2
+--network_time_step 1.0
+--ckpt_path '/path/to/the/checkpoint/file'
+--depth 5
+--hiden_units 100
+--save_dir '/path/to/save/prediction/outputs/'
+```
+
+- To execute the inference script for networks trained for **inviscid** flows
+```
+cd inference/
+python sim_and_predict_viscous_vortex.py --domain [120, 120]
+--location '../sample/location_000000.npz'
+--strength '../sample/strength_000000.npz'
+--core_size '../sample/sigma_000000.npz'
+--viscosity 1.0
+--sim True
+--vortex_fit False
+--network 'Vortex'
+--order 2
+--num_time_steps 50 
+--sim_time_step 0.2
+--network_time_step 1.0
+--ckpt_path '/path/to/the/checkpoint/file'
+--depth 5
+--hiden_units 100
+--save_dir '/path/to/save/prediction/outputs/'
+```
+
+- The location, strengths adn core sizes of particles at starting time instant is specified by the arguments `--location`, `--strength`
+and `--core_size` respectively. An example of such files could be found in `cd sample/`, where
+`location_000000.npz` is a numpy array of shape `(1, NPARTICLES, 2)` 
+and both `strength_000000.npz` and `sigma_000000.npz` are of shape `(1, NPARTICLES, 1)`.
+
+- The `-sim` and `--vortex_fit` arguments indicates whether to perform numerical simulations and **Vortex-Fit**.
+
+- The outputs are saved in the directory specified by `--save_dir`. Two sub-directories are created:
+    - `/path/to/save/prediction/outputs/outputs`: for saving `*.npz` outputs from neural network, simulations and **Vortex-Fit**. The filename's with suffixes `_fit` and `_prediction` 
+    indicates the outputs from neural network predictions and **Vortex-Fit** respectively, whereas, the outputs from simulations are without any suffixes.
+    - `/path/to/save/prediction/outputs/plots`: for saving `*.png` plots and `*.avi` videos. Movies with only simulation from neural networks are saved as 
+    `video_nn.avi`, movies with neural network predictions and simulations in comparison are saved as 
+    `video_sim_nn.avi` and movies with neural network predictions and simulations along with error map on velocity magnitude is
+    saved as `video_sim_nn_error.avi`.
+     
 
 
