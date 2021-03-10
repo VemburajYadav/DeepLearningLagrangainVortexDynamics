@@ -27,6 +27,10 @@ $ pip install .
 ```
 conda install pytorch==1.2.0 torchvision==0.4.0 cudatoolkit=10.0 -c pytorch
 ```
+- **opencv** is used to generate videos.
+```
+pip install opencv-python
+```  
 
 ## Neural Networks for Vortex Particle Dynamics (Open domain)
 
@@ -81,7 +85,7 @@ controlled by the `--n_samples` argument.
 
 - The argument `--sigma_range` specifies the range of values for **core size** of vortex particles, from which the values are uniformly sampled from. Same applies for the `--viscosity` argument in the script for viscous flows.
 
-- The time step for numerical simulation is specified by the `-time_step` argument, which we set to 0.2 seconds throughout this work. Advancement of numerical simulation for a certain number of time steps is specified by the `--num_time_steps`.  
+- The time step for numerical simulation is specified by the `-time_step` argument, which we set to 0.2 seconds throughout this work. Advancement of numerical simulation for a certain number of time steps is specified by the `--num_time_steps` argument.  
 
 
 ### Neural Network Training
@@ -151,7 +155,7 @@ for training with **Vortex Network** and `'Interaction'` for training with **Int
 name of the experiment in the  `--ex` argument. 
 For example if `--logs_dir` is `'../logs'` and `-ex` is `'VortexNet'`, then the training summaries will be saved in 
 `./logs/VortexNet_2/`.
-- In order to initialise the weights of the network from a different experiment, specify the name of the corrsponding experiment in   `--load_weigthts_ex`. In order to resume an interrupted training of any experiment, set 
+- In order to initialise the weights of the network from a different experiment, specify the name of the corresponding experiment in   `--load_weigthts_ex`. In order to resume an interrupted training of any experiment, set 
 `--load_weigthts_ex` to be same as `--ex`. The default is `None`.
 - All the networks use fully connected layers and we use 5 hidden layers each with 100 units, which is specified by the 
 `--depth` and `--hiden_units` arguments respectively. 
@@ -159,7 +163,7 @@ For example if `--logs_dir` is `'../logs'` and `-ex` is `'VortexNet'`, then the 
 
 ### Evaluation
 
-The evaluation scripts compares the predictions from trained neural network models with the dat from numerical simulations and outputs the performance metrics 
+The evaluation scripts compares the predictions from trained neural network models with the data from numerical simulations and outputs the performance metrics 
 for a single data sample or averaged over a whole dataset.
 
 - To execute the evaluation script for networks trained for **inviscid** flows
@@ -203,7 +207,7 @@ For example, in order to evaluate the metrics over a whole validation set of the
 - The `--ckpt_path` specifies the path to the checkpoint file to load weights from. For example
 `'../model/ckpt_vortexnet_2_inviscid.pytorch'`.
 
-- Alternatively to load the checkpoints, `-logs_dir` and `--load_weights_ex` arguments could be specified to directly load the 
+- Alternatively to load the checkpoints, `--logs_dir` and `--load_weights_ex` arguments could be specified to directly load the 
 best checkpoint file from a particular experiment.  
  
 - The `--save_dir` argument specifies the directory to save neural network outputs. A specific subdirectory corresponding to each data sample will be created to save the outputs. Default to 
@@ -284,7 +288,7 @@ and both `strength_000000.npz` and `sigma_000000.npz` are of shape `(1, NPARTICL
     indicates the outputs from neural network predictions and **Vortex-Fit** respectively, whereas, the outputs from simulations are without any suffixes.
     - `/path/to/save/prediction/outputs/plots`: for saving `*.png` plots and `*.avi` videos. Movies with only simulation from neural networks are saved as 
     `video_nn.avi`, movies with neural network predictions and simulations in comparison are saved as 
-    `video_sim_nn.avi` and movies with neural network predictions and simulations along with error map on velocity magnitude is
+    `video_sim_nn.avi` and movies with neural network predictions and simulations along with error map on velocity magnitude are
     saved as `video_sim_nn_error.avi`.
      
 
@@ -292,7 +296,8 @@ and both `strength_000000.npz` and `sigma_000000.npz` are of shape `(1, NPARTICL
 ## Neural Networks for Vortex Particle Dynamics (With Boundaries)
 
 For flows with boundaries, we use our trained Vortex Networks **(VortexNet)** an additional correction network to predict the correction velocity field in presence of boundaries. We refer to the correction network as Boundary Condition Network **(BCNet)**.
-For more information related to the process of dataset generation and training 
+For more information related to the process of dataset generation and training **BCNet**,
+refer to Section 3.5 of the [Report](https://www.dropbox.com/s/jrbpttt3a17pf1s/Report_revised_4868459.pdf?dl=0) 
 
 ### Dataset
 
@@ -316,8 +321,8 @@ python create_dataset_dataset_vortex_particle_grads.py --domain [120, 120]
 
 - This step samples vortex particle locations, strengths and core sizes and computes the resulting velocity and 
 higher order derivatives of velocity upto order specified by the `-order` argument at
-    - points in the staggered **grid** corresponding to y-velocity as saved as `features_points_y.npz`.
-    - points in the staggered **grid** corresponding to x-velocity as saved as `features_points_x.npz`.
+    - points in the staggered **grid** corresponding to y-velocity and saved as `features_points_y.npz`.
+    - points in the staggered **grid** corresponding to x-velocity and saved as `features_points_x.npz`.
     - 10000 other **non-grid** points in the domain which are not part of the 
     staggered grid and saved as `features_domian.npz`.
     - 4000 points on the boundaries and saved as `features_boundaries.npz`.
