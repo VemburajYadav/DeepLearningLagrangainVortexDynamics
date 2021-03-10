@@ -299,7 +299,7 @@ The dataset generation is a 2-step process
 ```
 cd DataGenScripts/
 python create_dataset_dataset_vortex_particle_grads.py --domain [120, 120]
---offset [40, 40]
+--offset [20, 20]
 --n_samples 4000
 --sigma_range [2.0, 10.0]
 --train_percent 0.6
@@ -338,7 +338,7 @@ python create_dataset_div_free_dataset.py --domain [120, 120]
 ### Neural Network Training
 
 To train **BCNet**, we employ training strategy similar to 
-[Physics Informed Neural Networks](https://arxiv.org/abs/1711.10561). In addition **MSE** loss 
+[Physics Informed Neural Networks](https://arxiv.org/abs/1711.10561). In addition to **MSE** loss 
 , we employ **losses based on the divergence** of correction velocity field predicted by **BCNet** and the the **boundary condition loss**.
 
 - Execute the following script to train **BCNet**
@@ -362,15 +362,58 @@ python train_div_free_net.py --domain [120, 120]
 ```
 
 - **BCNet** takes position of any point, velocity and higher derivatives of velocity at that point due to vortex particles as input. It outputs the correction velocity at that point.
-- The `--order` argument specifies the maximum order of derivatives of velocity to consider for **BCNet** input. 
-- The argument `-sampling_type` indicates the type of points to sample during training. There are 3 differnt options:
+- The `--order` argument specifies the maximum order of derivatives of velocity to consider for **BCNet** input.  
+- The argument `--sampling_type` indicates the type of points to sample during training. There are 3 different options:
     - `'grid-only'`: Only points in the domain, which belong to the staggered grid would be sampled. Since, the target velocity
     is available only for **grid** points, the network could be trained with both **MSE** and **divergence** losses.
     - `'non-grid-only'`: Only points in the domain, which do not belong to the staggered grid would be sampled. Only **divergence** loss would be applicable under this setting.
     - `'both'`: Both **grid** and **non-grid** points would be sampled. **Divergence** loss would be applicable for all the points, whereas **MSE** 
     loss would be applicable for only **grid** points. This is the default setting in our work.
-- The argument `--n_domain_pts` specifies the number of points in the boundary to be randomly sampled during each mini-batch execution to
+- The argument `--n_domain_pts` specifies the number of points in the domain to be randomly sampled during each mini-batch execution. If the `--sampling_type` is
+`'both'`, both **grid** and **non-grid** points would be sampled in equal proportions and is equal to half the 
+`n_domain_pts`.  
+- The argument `--n_boundary_pts` specifies the number of points in the boundary to be randomly sampled during each mini-batch execution to
 compute the **boundary condition** loss.
+
+### Evaluation
+Since **VortexNet** and **BCNet** are trained separately on different datasets, a separate dataset with numerical simulations in presence of boundaries for evaluation.
+```
+cd DataGenScripts/
+python create_dataset_dataset_boundariesx.py --domain [120, 120]
+--offset [10, 10]
+--n_samples 4000
+--sigma_range [2.0, 10.0]
+--train_percent 0.6
+--eval_percent 0.2
+--num_time_steps 10
+--time_step 0.2 
+--save_dir '/path/to/save/the/dataset'
+```
+
+- The evaluation script could be executed as
+```
+cd core/
+python eval_vortex_boundaries.py --domain [120, 120]
+--data_dir '/path/to/the/directory/with/data/samples/'
+--network 'Vortex'
+--order 2
+--num_time_steps 1 
+--sim_time_step 0.2
+--network_time_step 1.0
+--ckpt_path_vortex '/path/to/the/checkpoint/file/for/VortexNet'
+--ckpt_path_bc '/path/to/the/checkpoint/file/for/BCNet'
+--depth 5
+--hiden_units 100
+--save_dir '/path/to/save/prediction/outputs/'
+```
+- The computed metrics are **MSE** and **MAE** losses on the velocity field, MSE loss for **boundary condition** and 
+**divergence** loss. These metrics are computed both after the predictions 
+from **VortexNet** and after predictions from **VortexNet + BCNet**.
+- Filename's with suffixes `_vortex` indicate outputs form **VortexNet**, whereas filename's with suffixes 
+`_vortex_bc` indicate outputs from **VortexNet + BCNet**.
+
+
+### Inference
 
 
 

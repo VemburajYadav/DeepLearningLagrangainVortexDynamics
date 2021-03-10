@@ -146,8 +146,8 @@ VelDerivExpRed = VelocityDerivatives(order=ORDER)
 
 
 # filename's for saving velocity fields
-velocity_filenames_vortex = ['velocity_prediction_VortexNet_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS + 1)]
-velocity_filenames_vortex_bc = ['velocity_prediction_VortexBCNet_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS + 1)]
+velocity_filenames_vortex = ['velocity_prediction_vortex_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS + 1)]
+velocity_filenames_vortex_bc = ['velocity_prediction_vortex_bc_' + '0' * (6 - len(str(i))) + str(i) + '.npz' for i in range(NUM_TIME_STEPS + 1)]
 
 
 # track losses for all the data samples
