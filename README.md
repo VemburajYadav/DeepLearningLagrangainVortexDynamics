@@ -222,7 +222,7 @@ and are saved as `mse_loss.npz` and `mae_loss.npz` respectively of shape
  
 ### Inference
 
-The inference scripts exists in `cd inference/`. It makes predictions 
+The inference scripts exists in `cd inference/`. It makes predictions for
 the particle dynamics from trained neural model and saves the resulting plots and videos.
 Optionally, it also performs numerical simulation and **Vortex-Fit** for comparison.
 
@@ -246,7 +246,7 @@ python sim_and_predict_vortex.py --domain [120, 120]
 --save_dir '/path/to/save/prediction/outputs/'
 ```
 
-- To execute the inference script for networks trained for **inviscid** flows
+- To execute the inference script for networks trained for **viscous** flows
 ```
 cd inference/
 python sim_and_predict_viscous_vortex.py --domain [120, 120]
@@ -282,5 +282,62 @@ and both `strength_000000.npz` and `sigma_000000.npz` are of shape `(1, NPARTICL
     `video_sim_nn.avi` and movies with neural network predictions and simulations along with error map on velocity magnitude is
     saved as `video_sim_nn_error.avi`.
      
+
+
+## Neural Networks for Vortex Particle Dynamics (With Boundaries)
+
+For flows with boundaries, we use our trained Vortex Networks **(VortexNet)** an additional correction network to predict the correction velocity field in presence of boundaries. We refer to the correction network as Boundary Condition Network **(BCNet)**.
+For more information related to the process of dataset generation and training 
+
+### Dataset
+
+In order to train **BCNet**, we generate a dataset with each data sample as a pair of grid based velocity fields mapping from the velocity field in an open domain as a result of vortex particles to a velocity field that satisfies no-through-flow boundary condition.
+
+The dataset generation is a 2-step process
+
+- First execute the script `cd DataGenScripts/create_dataset_vortex_particle_grads.py`
+```
+cd DataGenScripts/
+python create_dataset_dataset_vortex_particle_grads.py --domain [120, 120]
+--offset [40, 40]
+--n_samples 4000
+--sigma_range [2.0, 10.0]
+--train_percent 0.6
+--eval_percent 0.2
+--num_time_steps 10
+--time_step 0.2 
+--save_dir '/path/to/save/the/dataset'
+```
+
+- This step samples vortex particle locations, strengths and core sizes and computes the resulting velocity and 
+higher order derivatives of velocity upto order specified by the `-order` argument at
+    - points in the staggered grid corresponding to y-velocity as saved as `features_points_y.npz`.
+    - points in the staggered grid corresponding to x-velocity as saved as `features_points_x.npz`.
+    - 10000 other points in the domain which are not part of the 
+    staggered grid and saved as `features_domian.npz`.
+    - 4000 points on the boundaries and saved as `features_boundaries.npz`.
+    - For example for for order 2, these arrays are of shape
+     `(1, NPOINTS, 16)`, where the last dimension of size 16 
+     corresponds to 2 indices for location, 12 indices for velocity 
+     and its derivatives. The last 2 indices corresponds to normal vectors for boundary points and the binary ground-truth velocity labels for
+     the domain points (grid and non-grid).
+     
+- Second, execute the script `cd DataGenScripts/create_div_free_datasety`
+```
+cd DataGenScripts/
+python create_dataset_div_free_dataset.py --domain [120, 120]
+--data_dir '/path/to/the/dataset/'
+```
+
+- Set the `-data_dir` to be same as the `--save_dir` argument in previous script.
+- This script reads the vortex particle features generated from the first script and generates 2 velocity fields:
+    - `velocity_000000.npz`: velocity field in an open domain as result of vortex particles.
+    - `velocity_div_000000.npz`: modified velocity field in presence of boundaries.
+    
+    
+### Training
+
+
+    
 
 
