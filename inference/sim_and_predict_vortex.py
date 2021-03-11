@@ -19,14 +19,11 @@ import json
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--location', type=str, default='../../Datasets_LVD/'
-                                                    'data/p10_gaussian_dataset_120x120_4000/train/sim_002100/location_000000.npz',
+parser.add_argument('--location', type=str, default='../sample/location_000000.npz',
                     help='path to the npz file with initial particle locations')
-parser.add_argument('--strength', type=str, default='../../Datasets_LVD/'
-                                                    'data/p10_gaussian_dataset_120x120_4000/train/sim_002100/strength_000000.npz',
+parser.add_argument('--strength', type=str, default='../sample/strength_000000.npz',
                     help='path to the npz file with initial particle strengths')
-parser.add_argument('--core_size', type=str, default='../../Datasets_LVD/'
-                                                    'data/p10_gaussian_dataset_120x120_4000/train/sim_002100/sigma_000000.npz',
+parser.add_argument('--core_size', type=str, default='../sample/sigma_000000.npz',
                     help='path to the npz file with initial particle core sizes')
 parser.add_argument('--sim', type=bool, default=True,
                     help='whether to run numerical simulations')
@@ -47,7 +44,7 @@ parser.add_argument('--load_weights_ex', type=str, default=None,
                     help='name of the experiment to load checkpoint from')
 parser.add_argument('--ckpt_path', type=str, default='../model/ckpt_vortexnet_2_inviscid.pytorch',
                     help='path to the actual checkpoint file (overrides the logs_dir and load_weights_ex argument)')
-parser.add_argument('--save_dir', type=str, default='../../Inference_LVD/Vortexnet-2/Case_3',
+parser.add_argument('--save_dir', type=str, default='../Visuals/VortexNet_2_Inviscid/Case_1',
                     help='directory to write the neural network predictions and plots (leave it to the default value of None if not to save the outputs)')
 
 

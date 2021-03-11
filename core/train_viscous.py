@@ -35,7 +35,7 @@ parser.add_argument('--batch_size', type=int, default=32, help='Batch Size for t
 parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
 parser.add_argument('--logs_dir', type=str, default='../logs', help='directory to save checkpoints and training summaries')
-parser.add_argument('--ex', type=str, default='T1_p10_gauss_viscous_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_4000_1', help='name of the experiment')
+parser.add_argument('--ex', type=str, default='VortexNet_2_Viscous', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
 parser.add_argument('--hidden_units', type=int, default=100, help='number of neurons in hidden layers')

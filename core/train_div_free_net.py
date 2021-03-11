@@ -18,7 +18,7 @@ import json
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
-parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
+parser.add_argument('--epochs', type=int, default=500, help='number of epochs to train for')
 parser.add_argument('--data_dir', type=str, default='../'
                                                     'data/bc_net_dataset_p10_gaussian_visc_8000',
                     help='path to save training summaries and checkpoints')
@@ -28,7 +28,7 @@ parser.add_argument('--n_boundary_pts', type=int, default=50, help='Number of po
 parser.add_argument('--lr', type=float, default=1e-3, help='Base learning rate')
 parser.add_argument('--l2', type=float, default=1e-5, help='weight for l2 regularization')
 parser.add_argument('--logs_dir', type=str, default='../logs', help='directory to save checkpoints and training summaries')
-parser.add_argument('--ex', type=str, default='BC_both_gaussian_weight_1.0_depth_5_100_batch_32_lr_1e-3_l2_1e-5_r120_8000_2', help='name of the experiment')
+parser.add_argument('--ex', type=str, default='BCNet_2', help='name of the experiment')
 parser.add_argument('--load_weights_ex', type=str, default=None, help='name of the experiment')
 parser.add_argument('--sampling_type', type=str, default='both',
                     help='strategy to sample points for PINN training. '
