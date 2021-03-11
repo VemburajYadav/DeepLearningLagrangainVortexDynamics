@@ -4,6 +4,7 @@ This repository contains the code for my master thesis project for the masters p
 - [Report](https://www.dropbox.com/s/jrbpttt3a17pf1s/Report_revised_4868459.pdf?dl=0) for the project.
 - [Slides](https://www.dropbox.com/scl/fi/pyqj9hwrk6370iqmfdo0d/Presentation_MA.pptx?dl=0&rlkey=aywt3nogtie7ni28brnrjr19b) of the final presentation.
 
+![](./images/video-sim-nn.gif)
 
 ## Installation
 
