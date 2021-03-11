@@ -3,6 +3,7 @@ build/
 *.py[cod]
 *.o
 *.npz
+!sample/*.npz
 *.sp
 *.so
 .idea/

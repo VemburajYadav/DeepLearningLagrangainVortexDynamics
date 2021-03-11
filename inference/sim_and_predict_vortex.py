@@ -20,13 +20,13 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--domain', type=list, default=[120, 120], help='resolution of the domain (as list: [256, 256])')
 parser.add_argument('--location', type=str, default='../../Datasets_LVD/'
-                                                    'data/p10_gaussian_dataset_120x120_4000/val/sim_000000/location_000000.npz',
+                                                    'data/p10_gaussian_dataset_120x120_4000/train/sim_002100/location_000000.npz',
                     help='path to the npz file with initial particle locations')
 parser.add_argument('--strength', type=str, default='../../Datasets_LVD/'
-                                                    'data/p10_gaussian_dataset_120x120_4000/val/sim_000000/strength_000000.npz',
+                                                    'data/p10_gaussian_dataset_120x120_4000/train/sim_002100/strength_000000.npz',
                     help='path to the npz file with initial particle strengths')
 parser.add_argument('--core_size', type=str, default='../../Datasets_LVD/'
-                                                    'data/p10_gaussian_dataset_120x120_4000/val/sim_000000/sigma_000000.npz',
+                                                    'data/p10_gaussian_dataset_120x120_4000/train/sim_002100/sigma_000000.npz',
                     help='path to the npz file with initial particle core sizes')
 parser.add_argument('--sim', type=bool, default=True,
                     help='whether to run numerical simulations')
@@ -36,7 +36,7 @@ parser.add_argument('--vortex_fit', type=bool, default=True,
                     help='whether to do vortex-fit on velocity fields from simulation (only applicable if argument: "sim" is True)')
 parser.add_argument('--network_time_step', type=float, default=1.0,
                     help='time step in seconds over which the neural network is trained to make predictions')
-parser.add_argument('--num_time_steps', type=int, default=5, help='number of time steps to make predictions')
+parser.add_argument('--num_time_steps', type=int, default=20, help='number of time steps to make predictions')
 parser.add_argument('--network', type=str, default='Vortex',
                     help='type of neural network for VortexNet: Vortex or Interaction')
 parser.add_argument('--depth', type=int, default=5, help='number of hidden layers')
@@ -47,7 +47,7 @@ parser.add_argument('--load_weights_ex', type=str, default=None,
                     help='name of the experiment to load checkpoint from')
 parser.add_argument('--ckpt_path', type=str, default='../model/ckpt_vortexnet_2_inviscid.pytorch',
                     help='path to the actual checkpoint file (overrides the logs_dir and load_weights_ex argument)')
-parser.add_argument('--save_dir', type=str, default='../../Inference_LVD/Vortexnet-2/Case_1',
+parser.add_argument('--save_dir', type=str, default='../../Inference_LVD/Vortexnet-2/Case_3',
                     help='directory to write the neural network predictions and plots (leave it to the default value of None if not to save the outputs)')
 
 
